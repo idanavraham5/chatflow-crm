@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { useAuth } from '../App';
+import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
 import ConversationList from '../components/ConversationList';
 import ChatWindow from '../components/ChatWindow';

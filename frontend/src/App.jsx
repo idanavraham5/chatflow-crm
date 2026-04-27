@@ -1,6 +1,7 @@
-import React, { useState, useEffect, createContext, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { getMe, logout as apiLogout } from './api';
+import { AuthContext } from './context/AuthContext';
 import Login from './pages/Login';
 import Chat from './pages/Chat';
 import Dashboard from './pages/Dashboard';
@@ -9,8 +10,7 @@ import Agents from './pages/Agents';
 import Templates from './pages/Templates';
 import Settings from './pages/Settings';
 
-export const AuthContext = createContext(null);
-export const useAuth = () => useContext(AuthContext);
+export { useAuth } from './context/AuthContext';
 
 function App() {
   const [user, setUser] = useState(null);

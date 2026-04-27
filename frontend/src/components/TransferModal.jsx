@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getAgents, transferConversation, shareConversation } from '../api';
-import { useAuth } from '../App';
+import { useAuth } from '../context/AuthContext';
 
 export default function TransferModal({ conversationId, mode, onClose, onDone }) {
   const { user } = useAuth();

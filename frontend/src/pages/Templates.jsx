@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
 import { getTemplates, createTemplate, updateTemplate, deleteTemplate } from '../api';
-import { useAuth } from '../App';
+import { useAuth } from '../context/AuthContext';
 
 export default function Templates() {
   const { user } = useAuth();

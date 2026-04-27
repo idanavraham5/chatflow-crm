@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
 import { getAgents, createAgent, updateAgent, resetAgentPassword } from '../api';
-import { useAuth } from '../App';
+import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 const statusColors = { online: '#25D366', busy: '#F59E0B', away: '#EF4444' };

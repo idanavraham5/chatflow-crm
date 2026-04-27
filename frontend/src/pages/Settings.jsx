@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Sidebar from '../components/Sidebar';
-import { useAuth } from '../App';
+import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import {
   getTemplates, createTemplate, updateTemplate, deleteTemplate,

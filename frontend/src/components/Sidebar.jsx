@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../App';
+import { useAuth } from '../context/AuthContext';
 import { updateAgent } from '../api';
 
 const statusColors = { online: '#25D366', busy: '#F59E0B', away: '#EF4444' };

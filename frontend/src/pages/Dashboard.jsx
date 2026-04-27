@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { LineChart, Line, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import Sidebar from '../components/Sidebar';
 import { getDashboard } from '../api';
-import { useAuth } from '../App';
+import { useAuth } from '../context/AuthContext';
 
 const COLORS = ['#25D366', '#128C7E', '#075E54', '#F59E0B', '#3B82F6'];
 const statusColors = { online: '#25D366', busy: '#F59E0B', away: '#EF4444' };

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
 import CampaignModal from '../components/CampaignModal';
 import { getCampaigns, sendCampaign } from '../api';
-import { useAuth } from '../App';
+import { useAuth } from '../context/AuthContext';
 
 const statusLabels = { draft: 'טיוטה', sent: 'נשלח' };
 const statusColors = { draft: '#F59E0B', sent: '#25D366' };

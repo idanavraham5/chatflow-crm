@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getMessages, sendMessage, markRead, deleteMessage } from '../api';
-import { useAuth } from '../App';
+import { useAuth } from '../context/AuthContext';
 import MessageBubble from './MessageBubble';
 import TemplatesPicker from './TemplatesPicker';
 

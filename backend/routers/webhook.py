@@ -286,10 +286,19 @@ async def proxy_media(media_id: str, token: str = Query(None), current_user: Use
         # Step 2: Download actual file bytes
         content = await get_media_bytes(media_url)
 
+        # Map mime type to file extension
+        ext_map = {
+            "image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp",
+            "video/mp4": ".mp4", "audio/ogg": ".ogg", "audio/mpeg": ".mp3",
+            "application/pdf": ".pdf", "audio/aac": ".aac",
+        }
+        ext = ext_map.get(mime_type, "")
+        filename = f"whatsapp_{media_id[:10]}{ext}"
+
         return StarletteResponse(
             content=content,
             media_type=mime_type,
-            headers={"Content-Disposition": f"inline; filename={media_id}"}
+            headers={"Content-Disposition": f"inline; filename={filename}"}
         )
     except HTTPException:
         raise

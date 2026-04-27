@@ -196,6 +196,10 @@ def get_current_user(
         if auth_header.lower().startswith("bearer "):
             token = auth_header[7:]
 
+    # Also check query parameter (for media proxy requests from <img> tags)
+    if not token:
+        token = request.query_params.get("token")
+
     if not token:
         raise credentials_exception
 

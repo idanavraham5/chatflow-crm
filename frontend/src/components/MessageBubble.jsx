@@ -13,10 +13,11 @@ function formatTime(dateStr) {
 
 function resolveMediaUrl(url) {
   if (!url) return url;
-  // Proxy WhatsApp media through our backend
+  // Proxy WhatsApp media through our backend (with auth token)
   if (url.startsWith('wa-media://')) {
     const mediaId = url.replace('wa-media://', '');
-    return `/api/webhook/whatsapp/media/${mediaId}`;
+    const token = localStorage.getItem('token');
+    return `/api/webhook/whatsapp/media/${mediaId}?token=${token}`;
   }
   return url;
 }

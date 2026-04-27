@@ -272,7 +272,7 @@ async def _handle_status_update(event: dict, db: Session):
 
 # ─── Media Proxy (download customer-sent files) ───────────────
 @router.get("/whatsapp/media/{media_id}")
-async def proxy_media(media_id: str, current_user: User = Depends(get_current_user)):
+async def proxy_media(media_id: str, token: str = Query(None), current_user: User = Depends(get_current_user)):
     """Download media from WhatsApp CDN and proxy to frontend."""
     try:
         # Step 1: Get media URL from WhatsApp

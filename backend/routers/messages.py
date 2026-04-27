@@ -96,7 +96,10 @@ async def send_message(
             from models import Contact
             contact = db.query(Contact).filter(Contact.id == conv.contact_id).first()
             if contact:
-                phone_id = conv.phone_number_id  # Use the number this conversation belongs to
+                phone_id = conv.phone_number_id
+                # Fix legacy phone_id format (might contain :display_name)
+                if phone_id and ":" in phone_id:
+                    phone_id = phone_id.split(":")[0]
 
                 if msg.message_type in ("image",) and msg.media_url:
                     wa_result = await send_image_message(contact.phone, image_url=msg.media_url, phone_number_id=phone_id)
@@ -161,6 +164,12 @@ async def send_wa_template(
     if not contact:
         raise HTTPException(status_code=404, detail="Contact not found")
 
+    # Template display texts
+    template_contents = {
+        "welcome_yesh_li_zchut": f"היי {customer_name}, כאן {agent_name} מקבוצת יש לי זכות ממחלקת החזרי מס.\n\nהבדיקה ללא עלות ועל בסיס הצלחה בלבד!\nאין צורך בטפסים מקדימים מראש, אנו עושים עבורך את כל העבודה.\n\nלצורך הבדיקה יש לשלוח אמצעי זיהוי בלבד.\nכאן לשירותך!",
+        "no_answer_followup": f"שלום {customer_name}, כאן {agent_name} מקבוצת יש לי זכות.\n\nחזרתי אלייך כפי שביקשת אך אין מענה מצידך.\nלהזכירך - הבדיקה ללא עלות ועל בסיס הצלחה בלבד.\n\nמתי נוכל לשוחח?\nכאן לשירותך!",
+    }
+
     # Build template components with variables
     components = []
     if customer_name or agent_name:
@@ -172,7 +181,15 @@ async def send_wa_template(
         components.append({"type": "body", "parameters": params})
 
     try:
+        from whatsapp import get_default_phone_id
         phone_id = conv.phone_number_id
+        # Fix legacy phone_id format (might contain :display_name)
+        if phone_id and ":" in phone_id:
+            phone_id = phone_id.split(":")[0]
+        if not phone_id:
+            phone_id = get_default_phone_id()
+        print(f"📨 Sending template '{template_name}' to {contact.phone} via phone_id={phone_id}")
+
         result = await send_template_message(
             phone=contact.phone,
             template_name=template_name,
@@ -181,8 +198,10 @@ async def send_wa_template(
             phone_number_id=phone_id
         )
 
-        # Save as outbound message
-        template_text = f"📋 תבנית: {template_name}"
+        print(f"📨 Template result: {result}")
+
+        # Save as outbound message with actual content
+        template_text = template_contents.get(template_name, f"📋 תבנית: {template_name}")
         msg = Message(
             conversation_id=conversation_id,
             content=template_text,

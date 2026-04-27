@@ -409,8 +409,15 @@ def extract_message_content(message: dict) -> dict:
         elif interactive.get("type") == "list_reply":
             result["content"] = interactive.get("list_reply", {}).get("title", "")
 
+    elif msg_type == "order":
+        result["content"] = "🛒 הזמנה"
+
+    elif msg_type == "button":
+        btn = message.get("button", {})
+        result["content"] = btn.get("text", "לחיצת כפתור")
+
     else:
-        result["content"] = f"[{msg_type}]"
+        result["content"] = f"📎 הודעה ({msg_type})"
 
     return result
 

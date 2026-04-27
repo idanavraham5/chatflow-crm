@@ -194,7 +194,7 @@ export default function ChatWindow({ conversation, onConversationUpdate }) {
               <span className="px-2 py-0.5 rounded bg-wa-input">{categoryLabels[conversation.category]}</span>
               <span className="px-2 py-0.5 rounded bg-wa-input">{statusLabels[conversation.status]}</span>
               {conversation.phone_number_id && (
-                <span className="px-2 py-0.5 rounded bg-green-900/30 text-green-400">📱 {conversation.phone_number_id}</span>
+                <span className="px-2 py-0.5 rounded bg-green-900/30 text-green-400">📱 WhatsApp</span>
               )}
             </div>
           </div>

@@ -48,6 +48,17 @@ export default function Chat() {
 
   useWebSocket(handleWsMessage);
 
+  const handleSelectConversation = async (conv) => {
+    setSelectedConv(conv);
+    // Mark as not new when opened
+    if (conv && conv.is_new) {
+      try {
+        await updateConversation(conv.id, { is_new: false });
+        setRefreshTrigger(prev => prev + 1);
+      } catch (e) {}
+    }
+  };
+
   const handleConversationUpdate = async (update) => {
     if (!selectedConv) return;
     try {
@@ -62,7 +73,7 @@ export default function Chat() {
       <Sidebar />
       <ConversationList
         selectedId={selectedConv?.id}
-        onSelect={setSelectedConv}
+        onSelect={handleSelectConversation}
         refreshTrigger={refreshTrigger}
       />
       <ChatWindow

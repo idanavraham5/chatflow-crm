@@ -89,20 +89,23 @@ def list_conversations(
             )
         )
 
+    # Tab filtering in SQL for reliability
+    if tab == "mine":
+        query = query.filter(Conversation.owner_id == current_user.id)
+    elif tab == "unassigned":
+        query = query.filter(Conversation.owner_id.is_(None))
+    elif tab == "new":
+        query = query.filter(Conversation.is_new == True)
+    elif tab != "all" and current_user.role.value != "admin":
+        # Default: agent sees only their own + shared (shared_with needs Python filter)
+        pass
+
     convs = query.order_by(Conversation.last_message_at.desc()).all()
 
-    # Tab filtering (after query, because some filters need Python for JSON columns)
-    if tab == "mine":
-        convs = [c for c in convs if c.owner_id == current_user.id]
-    elif tab == "unassigned":
-        convs = [c for c in convs if c.owner_id is None]
-    elif tab == "new":
-        convs = [c for c in convs if c.is_new]
-    elif current_user.role.value != "admin":
-        # Default: agent sees only their own + shared
+    # Post-filters that need Python (JSON columns)
+    if tab != "all" and tab not in ("mine", "unassigned", "new") and current_user.role.value != "admin":
         convs = [c for c in convs if c.owner_id == current_user.id or current_user.id in (c.shared_with or [])]
 
-    # Filter by label (labels stored as JSON array of label IDs)
     if label_id is not None:
         convs = [c for c in convs if label_id in (c.labels or [])]
 

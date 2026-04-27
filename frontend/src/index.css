@@ -1,0 +1,133 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Rubik', sans-serif;
+  background-color: #EFEAE2;
+  color: #111B21;
+  direction: rtl;
+  overflow: hidden;
+  height: 100vh;
+}
+
+#root {
+  height: 100vh;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #CCD0D5;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #A8ABB0;
+}
+
+/* Context menu */
+.context-menu {
+  position: fixed;
+  background: #FFFFFF;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  z-index: 1000;
+  min-width: 180px;
+  padding: 6px 0;
+}
+.context-menu-item {
+  padding: 10px 20px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #111B21;
+}
+.context-menu-item:hover {
+  background: #F5F6F6;
+}
+
+/* Date separator */
+.date-separator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 0;
+}
+.date-separator span {
+  background: #FFFFFF;
+  color: #54656F;
+  padding: 5px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+/* Notification sound */
+.notification-badge {
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* Read receipts */
+.check-mark {
+  display: inline-flex;
+  margin-right: 3px;
+  font-size: 14px;
+}
+.check-mark.read {
+  color: #53BDEB;
+}
+.check-mark.delivered {
+  color: #8696A0;
+}
+.check-mark.sent {
+  color: #8696A0;
+}
+
+/* WhatsApp chat background doodle pattern */
+.wa-chat-bg {
+  background-color: #EFEAE2;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cdefs%3E%3Cstyle%3E.i%7Bfill:%23c6bba5;opacity:0.45%7D%3C/style%3E%3C/defs%3E%3Cg transform='scale(0.5)'%3E%3C!-- clock --%3E%3Ccircle class='i' cx='30' cy='30' r='8' fill='none' stroke='%23c6bba5' stroke-width='1.5' opacity='0.45'/%3E%3Cline x1='30' y1='30' x2='30' y2='24' stroke='%23c6bba5' stroke-width='1.5' opacity='0.45'/%3E%3Cline x1='30' y1='30' x2='34' y2='30' stroke='%23c6bba5' stroke-width='1.5' opacity='0.45'/%3E%3C!-- phone --%3E%3Crect class='i' x='105' y='15' width='12' height='20' rx='2'/%3E%3Cline class='i' x1='109' y1='31' x2='113' y2='31' stroke='%23c6bba5' stroke-width='1' opacity='0.45'/%3E%3C!-- heart --%3E%3Cpath class='i' d='M200 25c0-4-3-7-7-7s-7 3-7 7c0 8 7 13 7 13s7-5 7-13z'/%3E%3C!-- music note --%3E%3Ccircle class='i' cx='295' cy='35' r='4'/%3E%3Cline class='i' x1='299' y1='35' x2='299' y2='15' stroke='%23c6bba5' stroke-width='1.5' opacity='0.45'/%3E%3C!-- chat bubble --%3E%3Cpath class='i' d='M55 90 Q55 80 65 80 L85 80 Q95 80 95 90 L95 100 Q95 110 85 110 L70 110 L60 118 L62 110 L65 110 Q55 110 55 100Z'/%3E%3C!-- star --%3E%3Cpolygon class='i' points='170,80 173,90 183,90 175,96 178,106 170,100 162,106 165,96 157,90 167,90'/%3E%3C!-- camera --%3E%3Crect class='i' x='250' y='85' width='22' height='16' rx='2'/%3E%3Ccircle cx='261' cy='93' r='5' fill='none' stroke='%23c6bba5' stroke-width='1.2' opacity='0.45'/%3E%3Crect class='i' x='257' y='82' width='8' height='4' rx='1'/%3E%3C!-- pin/location --%3E%3Cpath class='i' d='M340 95c0-6 5-11 11-11s11 5 11 11c0 8-11 17-11 17s-11-9-11-17z'/%3E%3Ccircle cx='351' cy='95' r='3' fill='none' stroke='%23c6bba5' stroke-width='1.2' opacity='0.45' style='fill:%23EFEAE2'/%3E%3C!-- envelope --%3E%3Crect class='i' x='20' y='170' width='22' height='16' rx='2'/%3E%3Cpolyline points='20,170 31,180 42,170' fill='none' stroke='%23EFEAE2' stroke-width='1.5'/%3E%3C!-- smile --%3E%3Ccircle cx='120' cy='178' r='10' fill='none' stroke='%23c6bba5' stroke-width='1.5' opacity='0.45'/%3E%3Ccircle class='i' cx='116' cy='175' r='1.5'/%3E%3Ccircle class='i' cx='124' cy='175' r='1.5'/%3E%3Cpath d='M115 181 Q120 186 125 181' fill='none' stroke='%23c6bba5' stroke-width='1.2' opacity='0.45'/%3E%3C!-- lock --%3E%3Crect class='i' x='215' y='175' width='14' height='12' rx='2'/%3E%3Cpath d='M218 175 v-4 a4 4 0 0 1 8 0 v4' fill='none' stroke='%23c6bba5' stroke-width='1.5' opacity='0.45'/%3E%3C!-- wifi --%3E%3Cpath d='M320 190 Q330 170 340 190' fill='none' stroke='%23c6bba5' stroke-width='1.5' opacity='0.45'/%3E%3Cpath d='M325 188 Q330 178 335 188' fill='none' stroke='%23c6bba5' stroke-width='1.5' opacity='0.45'/%3E%3Ccircle class='i' cx='330' cy='190' r='2'/%3E%3C!-- pen --%3E%3Cline class='i' x1='365' y1='25' x2='385' y2='5' stroke='%23c6bba5' stroke-width='2' opacity='0.45'/%3E%3Cpolygon class='i' points='365,25 363,30 368,28'/%3E%3C!-- globe --%3E%3Ccircle cx='375' cy='178' r='10' fill='none' stroke='%23c6bba5' stroke-width='1.3' opacity='0.45'/%3E%3Cellipse cx='375' cy='178' rx='5' ry='10' fill='none' stroke='%23c6bba5' stroke-width='1' opacity='0.45'/%3E%3Cline x1='365' y1='178' x2='385' y2='178' stroke='%23c6bba5' stroke-width='1' opacity='0.45'/%3E%3C/g%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 200px 200px;
+}
+
+/* Modal overlay */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.modal-content {
+  background: #FFFFFF;
+  border-radius: 12px;
+  padding: 24px;
+  min-width: 400px;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+}

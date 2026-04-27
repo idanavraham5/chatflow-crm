@@ -27,11 +27,21 @@ def init_phone_numbers():
     WHATSAPP_PHONE_NAME_phone_id_2=יש לי זכות - מספר 2
     """
     global PHONE_NUMBERS
-    phone_ids = os.getenv("WHATSAPP_PHONE_IDS", "").split(",")
-    for pid in phone_ids:
-        pid = pid.strip()
+    phone_ids_raw = os.getenv("WHATSAPP_PHONE_IDS", "").split(",")
+    for entry in phone_ids_raw:
+        entry = entry.strip()
+        if not entry:
+            continue
+        # Support format: phone_id:display_name or just phone_id
+        if ":" in entry:
+            pid, display = entry.split(":", 1)
+            pid = pid.strip()
+            display = display.strip()
+        else:
+            pid = entry
+            display = None
         if pid:
-            name = os.getenv(f"WHATSAPP_PHONE_NAME_{pid}", f"מספר {pid}")
+            name = display or os.getenv(f"WHATSAPP_PHONE_NAME_{pid}", f"מספר {pid}")
             PHONE_NUMBERS[pid] = {"name": name, "phone_number_id": pid}
 
     # Fallback: single number setup

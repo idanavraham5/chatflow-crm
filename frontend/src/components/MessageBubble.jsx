@@ -24,7 +24,7 @@ function resolveMediaUrl(url) {
 export default function MessageBubble({ message, showSender, onContextMenu }) {
   const isOutbound = message.direction === 'outbound';
   const isNote = message.is_internal_note;
-  const mediaUrl = resolveMediaUrl(mediaUrl);
+  const mediaUrl = resolveMediaUrl(message.media_url);
 
   const handleContextMenu = (e) => {
     e.preventDefault();

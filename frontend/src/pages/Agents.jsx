@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
-import { getAgents, createAgent, updateAgent, resetAgentPassword } from '../api';
+import { getAgents, createAgent, updateAgent, resetAgentPassword, deleteAgent } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -65,9 +65,19 @@ export default function Agents() {
     }
   };
 
+  const handleDeleteAgent = async (agent) => {
+    if (!confirm(`למחוק את הנציג ${agent.name}? פעולה זו לא ניתנת לביטול.`)) return;
+    try {
+      await deleteAgent(agent.id);
+      fetchAgents();
+    } catch (e) {
+      alert(e.message || 'שגיאה במחיקה');
+    }
+  };
+
   const openEditAgent = (agent) => {
     setEditAgent(agent);
-    setEditForm({ name: agent.name, status: agent.status });
+    setEditForm({ name: agent.name, username: agent.username, status: agent.status });
   };
 
   const handleEditAgent = async () => {
@@ -165,6 +175,14 @@ export default function Agents() {
                         >
                           🔑 איפוס סיסמה
                         </button>
+                        {agent.role !== 'admin' && (
+                          <button
+                            onClick={() => handleDeleteAgent(agent)}
+                            className="text-wa-textSecondary hover:text-red-500 text-sm"
+                          >
+                            🗑️ מחיקה
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -272,6 +290,15 @@ export default function Agents() {
                     value={editForm.name}
                     onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
                     className="w-full bg-wa-input text-wa-text rounded-lg px-3 py-2 text-sm outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-wa-textSecondary text-xs mb-1.5">שם משתמש</label>
+                  <input
+                    value={editForm.username}
+                    onChange={(e) => setEditForm({ ...editForm, username: e.target.value })}
+                    className="w-full bg-wa-input text-wa-text rounded-lg px-3 py-2 text-sm outline-none"
+                    dir="ltr"
                   />
                 </div>
                 <div>

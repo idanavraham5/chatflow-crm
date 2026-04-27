@@ -154,6 +154,8 @@ export const updateAgent = (id, data) =>
   request(`/agents/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
 export const resetAgentPassword = (id, password) =>
   request(`/agents/${id}/reset-password`, { method: 'POST', body: JSON.stringify({ new_password: password }) });
+export const deleteAgent = (id) =>
+  request(`/agents/${id}`, { method: 'DELETE' });
 
 // Templates
 export const getTemplates = () => request('/templates/');
@@ -193,7 +195,7 @@ export default {
   getConversations, getConversationCounts, getConversation, createConversation, updateConversation, transferConversation, shareConversation,
   getMessages, sendMessage, markRead, deleteMessage,
   getContacts, getContact, updateContact,
-  getAgents, createAgent, updateAgent, resetAgentPassword,
+  getAgents, createAgent, updateAgent, resetAgentPassword, deleteAgent,
   getTemplates, createTemplate, updateTemplate, deleteTemplate,
   getLabels, createLabel, updateLabel, deleteLabel,
   getCampaigns, createCampaign, sendCampaign, getCampaignRecipients,

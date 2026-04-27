@@ -70,6 +70,12 @@ def update_agent(
     # Sanitize string fields
     if "name" in update_data and update_data["name"]:
         update_data["name"] = sanitize_input(update_data["name"], max_length=100)
+    if "username" in update_data and update_data["username"]:
+        update_data["username"] = sanitize_input(update_data["username"], max_length=50)
+        # Check uniqueness
+        existing = db.query(User).filter(User.username == update_data["username"], User.id != agent_id).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="שם משתמש כבר קיים")
 
     for key, value in update_data.items():
         setattr(user, key, value)
@@ -79,6 +85,28 @@ def update_agent(
 
     log_action(current_user.id, "AGENT_UPDATED", f"agent_id={agent_id} fields={list(update_data.keys())}")
     return user
+
+
+@router.delete("/{agent_id}")
+def delete_agent(
+    agent_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin)
+):
+    user = db.query(User).filter(User.id == agent_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    if user.id == current_user.id:
+        raise HTTPException(status_code=400, detail="לא ניתן למחוק את עצמך")
+    if user.role.value == "admin":
+        raise HTTPException(status_code=400, detail="לא ניתן למחוק מנהל מערכת")
+
+    username = user.username
+    db.delete(user)
+    db.commit()
+
+    log_action(current_user.id, "AGENT_DELETED", f"deleted_agent={username}")
+    return {"message": "Agent deleted successfully"}
 
 
 @router.post("/{agent_id}/reset-password")

@@ -84,6 +84,7 @@ class UserResponse(BaseModel):
 
 class UserUpdate(BaseModel):
     name: Optional[str] = None
+    username: Optional[str] = None
     status: Optional[UserStatus] = None
     is_active: Optional[bool] = None
     avatar_url: Optional[str] = None

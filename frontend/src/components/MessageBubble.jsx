@@ -67,7 +67,10 @@ export default function MessageBubble({ message, showSender, onContextMenu }) {
         )}
 
         {message.message_type === 'image' && mediaUrl && (
-          <img src={mediaUrl} alt="" className="rounded-md mb-2 max-w-full" />
+          <div className="mb-2">
+            <img src={mediaUrl} alt="" className="rounded-md max-w-full cursor-pointer" style={{ maxHeight: 250, objectFit: 'contain' }} onClick={() => window.open(mediaUrl, '_blank')} />
+            <a href={mediaUrl} download className="text-[10px] text-wa-light hover:underline mt-1 inline-block">⬇ הורד תמונה</a>
+          </div>
         )}
 
         {message.message_type === 'video' && mediaUrl && (

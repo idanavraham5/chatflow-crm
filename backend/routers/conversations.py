@@ -93,17 +93,17 @@ def list_conversations(
     if tab == "mine":
         query = query.filter(Conversation.owner_id == current_user.id)
     elif tab == "unassigned":
+        # Only admin can see unassigned conversations
+        if current_user.role.value != "admin":
+            return []
         query = query.filter(Conversation.owner_id.is_(None))
     elif tab == "new":
         query = query.filter(Conversation.is_new == True)
-    elif tab != "all" and current_user.role.value != "admin":
-        # Default: agent sees only their own + shared (shared_with needs Python filter)
-        pass
 
     convs = query.order_by(Conversation.last_message_at.desc()).all()
 
-    # Post-filters that need Python (JSON columns)
-    if tab != "all" and tab not in ("mine", "unassigned", "new") and current_user.role.value != "admin":
+    # For non-admin users on "all" tab: show only their conversations + shared
+    if tab == "all" and current_user.role.value != "admin":
         convs = [c for c in convs if c.owner_id == current_user.id or current_user.id in (c.shared_with or [])]
 
     if label_id is not None:
@@ -121,9 +121,14 @@ def conversation_counts(
     base = db.query(Conversation).filter(Conversation.status != ConversationStatus.closed).all()
 
     mine = len([c for c in base if c.owner_id == current_user.id])
-    unassigned = len([c for c in base if c.owner_id is None])
+    unassigned = len([c for c in base if c.owner_id is None]) if current_user.role.value == "admin" else 0
     new_count = len([c for c in base if c.is_new])
-    total = len(base)
+
+    # Admin sees total, agent sees only their own + shared
+    if current_user.role.value == "admin":
+        total = len(base)
+    else:
+        total = len([c for c in base if c.owner_id == current_user.id or current_user.id in (c.shared_with or [])])
 
     return {
         "mine": mine,

@@ -4,7 +4,7 @@ from sqlalchemy import func
 from typing import Optional, List
 from datetime import datetime
 from database import get_db
-from models import User, Conversation, Message, MessageDirection, ReadStatus
+from models import User, Conversation, Message, MessageDirection, ReadStatus, ConversationStatus
 from schemas import MessageCreate, MessageResponse
 from auth import get_current_user, log_action, sanitize_input
 from websocket_manager import manager
@@ -82,6 +82,11 @@ async def send_message(
     )
     db.add(new_msg)
     conv.last_message_at = func.now()
+
+    # Auto-assign: if conversation has no owner and agent sends a message, assign to them
+    if conv.owner_id is None and not msg.is_internal_note:
+        conv.owner_id = current_user.id
+        conv.status = ConversationStatus.in_progress
     db.commit()
     db.refresh(new_msg)
 

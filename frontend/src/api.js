@@ -128,6 +128,9 @@ export const getMessages = (convId, search = '') => {
 export const sendMessage = (convId, data) =>
   request(`/conversations/${convId}/messages/`, { method: 'POST', body: JSON.stringify(data) });
 
+export const sendTemplateMessage = (convId, templateName, customerName, agentName) =>
+  request(`/conversations/${convId}/messages/send-template?template_name=${encodeURIComponent(templateName)}&customer_name=${encodeURIComponent(customerName)}&agent_name=${encodeURIComponent(agentName)}`, { method: 'POST' });
+
 export const markRead = (convId, msgId) =>
   request(`/conversations/${convId}/messages/${msgId}/read`, { method: 'POST' });
 
@@ -193,7 +196,7 @@ export const getWhatsAppNumbers = () => request('/webhook/whatsapp/numbers');
 export default {
   login, logout, getMe,
   getConversations, getConversationCounts, getConversation, createConversation, updateConversation, transferConversation, shareConversation,
-  getMessages, sendMessage, markRead, deleteMessage,
+  getMessages, sendMessage, sendTemplateMessage, markRead, deleteMessage,
   getContacts, getContact, updateContact,
   getAgents, createAgent, updateAgent, resetAgentPassword, deleteAgent,
   getTemplates, createTemplate, updateTemplate, deleteTemplate,

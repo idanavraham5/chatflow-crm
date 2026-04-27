@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getMessages, sendMessage, markRead, deleteMessage } from '../api';
+import { getMessages, sendMessage, sendTemplateMessage, markRead, deleteMessage } from '../api';
 import { useAuth } from '../context/AuthContext';
 import MessageBubble from './MessageBubble';
 import TemplatesPicker from './TemplatesPicker';
@@ -41,6 +41,8 @@ export default function ChatWindow({ conversation, onConversationUpdate }) {
   const [searchMode, setSearchMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [contextMenu, setContextMenu] = useState(null);
+  const [showWaTemplates, setShowWaTemplates] = useState(false);
+  const [sendingTemplate, setSendingTemplate] = useState(false);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -133,6 +135,25 @@ export default function ChatWindow({ conversation, onConversationUpdate }) {
       setShowTemplates(false);
     } catch (e) {}
   };
+
+  const handleSendWaTemplate = async (templateName) => {
+    setSendingTemplate(true);
+    try {
+      const customerName = conversation.contact?.name || '';
+      const agentName = user?.name || '';
+      await sendTemplateMessage(conversation.id, templateName, customerName, agentName);
+      setShowWaTemplates(false);
+      fetchMessages();
+    } catch (e) {
+      alert(e.message || 'שגיאה בשליחת הודעה יזומית');
+    }
+    setSendingTemplate(false);
+  };
+
+  const waTemplates = [
+    { name: 'welcome_yesh_li_zchut', label: '👋 הודעת פתיחה', desc: 'הודעת היכרות ראשונית ללקוח חדש' },
+    { name: 'no_answer_followup', label: '🔄 אין מענה', desc: 'מעקב כשלקוח לא עונה' },
+  ];
 
   const hasOutboundMessages = messages.some(m => m.direction === 'outbound' && !m.is_internal_note);
 
@@ -285,6 +306,7 @@ export default function ChatWindow({ conversation, onConversationUpdate }) {
         )}
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1">
+            <button onClick={() => setShowWaTemplates(!showWaTemplates)} className="w-9 h-9 rounded-lg hover:bg-wa-hover flex items-center justify-center" title="הודעה יזומית WhatsApp">📨</button>
             <button onClick={() => setShowTemplates(!showTemplates)} className="w-9 h-9 rounded-lg hover:bg-wa-hover flex items-center justify-center" title="טמפלייטים">⚡</button>
             <button onClick={() => setIsNote(!isNote)} className={`w-9 h-9 rounded-lg hover:bg-wa-hover flex items-center justify-center ${isNote ? 'bg-wa-note text-yellow-700 border border-yellow-500/30' : ''}`} title="הערה פנימית">🔒</button>
             <button onClick={() => fileInputRef.current?.click()} className="w-9 h-9 rounded-lg hover:bg-wa-hover flex items-center justify-center" title="קובץ">📎</button>
@@ -322,6 +344,30 @@ export default function ChatWindow({ conversation, onConversationUpdate }) {
           onSend={handleSendTemplate}
           onClose={() => setShowTemplates(false)}
         />
+      )}
+
+      {/* WhatsApp Template picker */}
+      {showWaTemplates && (
+        <div className="absolute bottom-20 right-4 bg-wa-sidebar rounded-xl shadow-xl border border-wa-border p-4 w-80 z-50">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-sm">📨 שליחת הודעה יזומית</h3>
+            <button onClick={() => setShowWaTemplates(false)} className="text-wa-textSecondary hover:text-wa-text">✕</button>
+          </div>
+          <p className="text-xs text-wa-textSecondary mb-3">בחר תבנית WhatsApp מאושרת לפתיחת שיחה:</p>
+          <div className="space-y-2">
+            {waTemplates.map(t => (
+              <button
+                key={t.name}
+                onClick={() => handleSendWaTemplate(t.name)}
+                disabled={sendingTemplate}
+                className="w-full text-right p-3 rounded-lg bg-wa-input hover:bg-wa-hover transition disabled:opacity-50"
+              >
+                <div className="text-sm font-medium">{t.label}</div>
+                <div className="text-xs text-wa-textSecondary mt-0.5">{t.desc}</div>
+              </button>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* Context menu */}

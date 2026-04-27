@@ -8,7 +8,7 @@ from models import User, Conversation, Message, MessageDirection, ReadStatus, Co
 from schemas import MessageCreate, MessageResponse
 from auth import get_current_user, log_action, sanitize_input
 from websocket_manager import manager
-from whatsapp import send_text_message, send_image_message, send_document_message
+from whatsapp import send_text_message, send_image_message, send_document_message, send_template_message
 
 router = APIRouter(prefix="/api/conversations/{conversation_id}/messages", tags=["messages"])
 
@@ -140,6 +140,72 @@ async def send_message(
     })
 
     return response
+
+
+@router.post("/send-template")
+async def send_wa_template(
+    conversation_id: int,
+    template_name: str,
+    customer_name: str = "",
+    agent_name: str = "",
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Send a WhatsApp template message to initiate a conversation."""
+    from models import Contact
+    conv = db.query(Conversation).filter(Conversation.id == conversation_id).first()
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    contact = db.query(Contact).filter(Contact.id == conv.contact_id).first()
+    if not contact:
+        raise HTTPException(status_code=404, detail="Contact not found")
+
+    # Build template components with variables
+    components = []
+    if customer_name or agent_name:
+        params = []
+        if customer_name:
+            params.append({"type": "text", "text": customer_name})
+        if agent_name:
+            params.append({"type": "text", "text": agent_name})
+        components.append({"type": "body", "parameters": params})
+
+    try:
+        phone_id = conv.phone_number_id
+        result = await send_template_message(
+            phone=contact.phone,
+            template_name=template_name,
+            language="he",
+            components=components,
+            phone_number_id=phone_id
+        )
+
+        # Save as outbound message
+        template_text = f"📋 תבנית: {template_name}"
+        msg = Message(
+            conversation_id=conversation_id,
+            content=template_text,
+            message_type="text",
+            direction=MessageDirection.outbound,
+            sent_by=current_user.id,
+            is_internal_note=False,
+            read_status=ReadStatus.sent
+        )
+        db.add(msg)
+        conv.last_message_at = func.now()
+
+        # Auto-assign if unassigned
+        if conv.owner_id is None:
+            conv.owner_id = current_user.id
+            conv.status = ConversationStatus.in_progress
+
+        db.commit()
+        db.refresh(msg)
+
+        return {"message": "Template sent successfully", "wa_result": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to send template: {str(e)}")
 
 
 @router.post("/{message_id}/read")

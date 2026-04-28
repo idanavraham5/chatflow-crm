@@ -376,11 +376,21 @@ export default function ChatWindow({ conversation, onConversationUpdate }) {
         )}
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1">
-            <button onClick={() => setShowWaTemplates(!showWaTemplates)} className="w-9 h-9 rounded-lg hover:bg-wa-hover flex items-center justify-center" title="הודעה יזומית WhatsApp">📨</button>
-            <button onClick={() => setShowTemplates(!showTemplates)} className="w-9 h-9 rounded-lg hover:bg-wa-hover flex items-center justify-center" title="טמפלייטים">⚡</button>
-            <button onClick={() => setIsNote(!isNote)} className={`w-9 h-9 rounded-lg hover:bg-wa-hover flex items-center justify-center ${isNote ? 'bg-wa-note text-yellow-700 border border-yellow-500/30' : ''}`} title="הערה פנימית">🔒</button>
-            <button onClick={() => fileInputRef.current?.click()} className="w-9 h-9 rounded-lg hover:bg-wa-hover flex items-center justify-center" title="קובץ">📎</button>
-            <button onClick={() => imageInputRef.current?.click()} className="w-9 h-9 rounded-lg hover:bg-wa-hover flex items-center justify-center" title="תמונה">🖼️</button>
+            <button onClick={() => setShowWaTemplates(!showWaTemplates)} className="w-9 h-9 rounded-lg hover:bg-wa-hover flex items-center justify-center text-wa-textSecondary hover:text-wa-dark" title="הודעה יזומית WhatsApp">
+              <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/><path d="M9 10h6M9 14h4" strokeLinecap="round"/></svg>
+            </button>
+            <button onClick={() => setShowTemplates(!showTemplates)} className="w-9 h-9 rounded-lg hover:bg-wa-hover flex items-center justify-center text-wa-textSecondary hover:text-wa-dark" title="טמפלייטים">
+              <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" strokeLinejoin="round" strokeLinecap="round"/></svg>
+            </button>
+            <button onClick={() => setIsNote(!isNote)} className={`w-9 h-9 rounded-lg hover:bg-wa-hover flex items-center justify-center ${isNote ? 'bg-wa-note text-yellow-700 border border-yellow-500/30' : 'text-wa-textSecondary hover:text-wa-dark'}`} title="הערה פנימית">
+              <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4" strokeLinecap="round"/></svg>
+            </button>
+            <button onClick={() => fileInputRef.current?.click()} className="w-9 h-9 rounded-lg hover:bg-wa-hover flex items-center justify-center text-wa-textSecondary hover:text-wa-dark" title="קובץ">
+              <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" strokeLinecap="round"/></svg>
+            </button>
+            <button onClick={() => imageInputRef.current?.click()} className="w-9 h-9 rounded-lg hover:bg-wa-hover flex items-center justify-center text-wa-textSecondary hover:text-wa-dark" title="תמונה">
+              <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+            </button>
             <input ref={fileInputRef} type="file" className="hidden" onChange={(e) => handleFileUpload(e, 'file')} />
             <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleFileUpload(e, 'image')} />
           </div>

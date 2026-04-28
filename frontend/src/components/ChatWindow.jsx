@@ -379,9 +379,6 @@ export default function ChatWindow({ conversation, onConversationUpdate }) {
             <button onClick={() => setShowWaTemplates(!showWaTemplates)} className="w-9 h-9 rounded-lg hover:bg-wa-hover flex items-center justify-center text-wa-textSecondary hover:text-wa-dark" title="הודעה יזומית WhatsApp">
               <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/><path d="M9 10h6M9 14h4" strokeLinecap="round"/></svg>
             </button>
-            <button onClick={() => setShowTemplates(!showTemplates)} className="w-9 h-9 rounded-lg hover:bg-wa-hover flex items-center justify-center text-wa-textSecondary hover:text-wa-dark" title="טמפלייטים">
-              <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" strokeLinejoin="round" strokeLinecap="round"/></svg>
-            </button>
             <button onClick={() => setIsNote(!isNote)} className={`w-9 h-9 rounded-lg hover:bg-wa-hover flex items-center justify-center ${isNote ? 'bg-wa-note text-yellow-700 border border-yellow-500/30' : 'text-wa-textSecondary hover:text-wa-dark'}`} title="הערה פנימית">
               <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4" strokeLinecap="round"/></svg>
             </button>

@@ -204,6 +204,29 @@ async def send_audio_message(
     return await _send_request(phone_id, payload)
 
 
+async def upload_media(file_bytes: bytes, mime_type: str, filename: str, phone_number_id: Optional[str] = None) -> dict:
+    """Upload media to WhatsApp CDN and get media_id back."""
+    phone_id = phone_number_id or get_default_phone_id()
+    if not phone_id:
+        raise ValueError("No WhatsApp phone number configured")
+
+    url = f"{WHATSAPP_API_URL}/{phone_id}/media"
+    headers = {"Authorization": f"Bearer {WHATSAPP_TOKEN}"}
+
+    async with httpx.AsyncClient(timeout=30) as client:
+        files = {"file": (filename, file_bytes, mime_type)}
+        data = {"messaging_product": "whatsapp", "type": mime_type}
+        response = await client.post(url, headers=headers, files=files, data=data)
+
+        if response.status_code != 200:
+            print(f"❌ Media upload failed: {response.text}")
+            raise Exception(f"Media upload failed: {response.text}")
+
+        result = response.json()
+        print(f"✅ Media uploaded: {result}")
+        return result
+
+
 async def send_video_message(
     phone: str,
     video_url: str = None,

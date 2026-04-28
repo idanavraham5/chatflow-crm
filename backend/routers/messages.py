@@ -8,7 +8,7 @@ from models import User, Conversation, Message, MessageDirection, ReadStatus, Co
 from schemas import MessageCreate, MessageResponse
 from auth import get_current_user, log_action, sanitize_input
 from websocket_manager import manager
-from whatsapp import send_text_message, send_image_message, send_document_message, send_template_message
+from whatsapp import send_text_message, send_image_message, send_document_message, send_template_message, send_audio_message, upload_media
 
 router = APIRouter(prefix="/api/conversations/{conversation_id}/messages", tags=["messages"])
 
@@ -243,15 +243,40 @@ async def upload_voice(
     if not conv:
         raise HTTPException(status_code=404, detail="Conversation not found")
 
-    # Save uploaded file temporarily
-    content = await file.read()
+    file_bytes = await file.read()
+    mime_type = file.content_type or "audio/ogg"
+    filename = file.filename or "voice.ogg"
 
-    # For now, save as message with audio type
+    # Get phone_id
+    from whatsapp import get_default_phone_id
+    phone_id = conv.phone_number_id
+    if phone_id and ":" in phone_id:
+        phone_id = phone_id.split(":")[0]
+    if not phone_id:
+        phone_id = get_default_phone_id()
+
+    media_url = None
+    try:
+        # Upload to WhatsApp CDN
+        upload_result = await upload_media(file_bytes, mime_type, filename, phone_id)
+        media_id = upload_result.get("id")
+
+        if media_id:
+            # Send audio message to customer
+            from models import Contact
+            contact = db.query(Contact).filter(Contact.id == conv.contact_id).first()
+            if contact:
+                await send_audio_message(contact.phone, audio_id=media_id, phone_number_id=phone_id)
+            media_url = f"wa-media://{media_id}"
+    except Exception as e:
+        print(f"❌ Voice upload/send error: {e}")
+
     msg_type = "voice" if type == "voice" else "audio"
     msg = Message(
         conversation_id=conversation_id,
-        content="🎤 הודעה קולית" if type == "voice" else file.filename,
+        content="🎤 הודעה קולית" if type == "voice" else filename,
         message_type=msg_type,
+        media_url=media_url,
         direction=MessageDirection.outbound,
         sent_by=current_user.id,
         is_internal_note=False,
@@ -260,15 +285,12 @@ async def upload_voice(
     db.add(msg)
     conv.last_message_at = func.now()
 
-    # Auto-assign if unassigned
     if conv.owner_id is None:
         conv.owner_id = current_user.id
         conv.status = ConversationStatus.in_progress
 
     db.commit()
     db.refresh(msg)
-
-    # TODO: Send voice via WhatsApp API (requires media upload to Meta first)
 
     return message_to_response(msg, db)
 

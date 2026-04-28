@@ -47,6 +47,11 @@ export default function ChatWindow({ conversation, onConversationUpdate }) {
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
   const imageInputRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const recordingIntervalRef = useRef(null);
 
   const hasMultipleAgents = conversation?.shared_with?.length > 0 || conversation?.owner_id;
 
@@ -156,6 +161,71 @@ export default function ChatWindow({ conversation, onConversationUpdate }) {
   ];
 
   const hasOutboundMessages = messages.some(m => m.direction === 'outbound' && !m.is_internal_note);
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
+      mediaRecorder.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/ogg; codecs=opus' });
+        clearInterval(recordingIntervalRef.current);
+        setRecordingTime(0);
+
+        // Upload voice message
+        const formData = new FormData();
+        formData.append('file', audioBlob, 'voice.ogg');
+        try {
+          const token = localStorage.getItem('token');
+          const res = await fetch(`/api/conversations/${conversation.id}/messages/upload?type=voice`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: formData
+          });
+          if (res.ok) {
+            const msg = await res.json();
+            setMessages(prev => [...prev, msg]);
+          }
+        } catch (err) {
+          console.error('Voice upload error:', err);
+        }
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+      recordingIntervalRef.current = setInterval(() => setRecordingTime(t => t + 1), 1000);
+    } catch (err) {
+      alert('לא ניתן לגשת למיקרופון');
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
+  const cancelRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stream.getTracks().forEach(t => t.stop());
+      mediaRecorderRef.current = null;
+      audioChunksRef.current = [];
+      clearInterval(recordingIntervalRef.current);
+      setIsRecording(false);
+      setRecordingTime(0);
+    }
+  };
+
+  const formatRecordingTime = (s) => `${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}`;
 
   const handleFileUpload = async (e, type) => {
     const file = e.target.files?.[0];
@@ -314,6 +384,16 @@ export default function ChatWindow({ conversation, onConversationUpdate }) {
             <input ref={fileInputRef} type="file" className="hidden" onChange={(e) => handleFileUpload(e, 'file')} />
             <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleFileUpload(e, 'image')} />
           </div>
+          {isRecording ? (
+            <div className="flex-1 flex items-center gap-3 bg-red-50 rounded-lg px-4 py-2.5 border border-red-200">
+              <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse" />
+              <span className="text-sm text-red-600 font-medium">מקליט... {formatRecordingTime(recordingTime)}</span>
+              <div className="flex-1" />
+              <button onClick={cancelRecording} className="text-red-400 hover:text-red-600 text-sm">ביטול</button>
+              <button onClick={stopRecording} className="bg-red-500 hover:bg-red-600 text-white px-4 py-1.5 rounded-lg text-sm font-medium transition">שלח</button>
+            </div>
+          ) : (
+          <>
           <textarea
             ref={inputRef}
             value={input}
@@ -324,16 +404,29 @@ export default function ChatWindow({ conversation, onConversationUpdate }) {
               ${isNote ? 'border border-yellow-500/30' : ''}`}
             rows={1}
           />
-          <button
-            onClick={handleSend}
-            disabled={!input.trim()}
-            className="w-10 h-10 rounded-full bg-wa-dark hover:bg-wa-medium flex items-center justify-center transition disabled:opacity-30"
-            title="שלח (Ctrl+Enter)"
-          >
-            <svg viewBox="0 0 24 24" className="w-5 h-5 text-white rotate-180" fill="currentColor">
-              <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-            </svg>
-          </button>
+          {input.trim() ? (
+            <button
+              onClick={handleSend}
+              className="w-10 h-10 rounded-full bg-wa-dark hover:bg-wa-medium flex items-center justify-center transition"
+              title="שלח (Ctrl+Enter)"
+            >
+              <svg viewBox="0 0 24 24" className="w-5 h-5 text-white rotate-180" fill="currentColor">
+                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+              </svg>
+            </button>
+          ) : (
+            <button
+              onClick={startRecording}
+              className="w-10 h-10 rounded-full bg-wa-dark hover:bg-wa-medium flex items-center justify-center transition"
+              title="הקלט הודעה קולית"
+            >
+              <svg viewBox="0 0 24 24" className="w-5 h-5 text-white" fill="currentColor">
+                <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+              </svg>
+            </button>
+          )}
+          </>
+          )}
         </div>
       </div>
 

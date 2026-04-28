@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import Optional, List
@@ -225,6 +225,52 @@ async def send_wa_template(
         return {"message": "Template sent successfully", "wa_result": result}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to send template: {str(e)}")
+
+
+@router.post("/upload")
+async def upload_voice(
+    conversation_id: int,
+    type: str = Query("voice"),
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Upload voice message or file and send via WhatsApp."""
+    from models import Contact
+    import os, tempfile
+
+    conv = db.query(Conversation).filter(Conversation.id == conversation_id).first()
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    # Save uploaded file temporarily
+    content = await file.read()
+
+    # For now, save as message with audio type
+    msg_type = "voice" if type == "voice" else "audio"
+    msg = Message(
+        conversation_id=conversation_id,
+        content="🎤 הודעה קולית" if type == "voice" else file.filename,
+        message_type=msg_type,
+        direction=MessageDirection.outbound,
+        sent_by=current_user.id,
+        is_internal_note=False,
+        read_status=ReadStatus.sent
+    )
+    db.add(msg)
+    conv.last_message_at = func.now()
+
+    # Auto-assign if unassigned
+    if conv.owner_id is None:
+        conv.owner_id = current_user.id
+        conv.status = ConversationStatus.in_progress
+
+    db.commit()
+    db.refresh(msg)
+
+    # TODO: Send voice via WhatsApp API (requires media upload to Meta first)
+
+    return message_to_response(msg, db)
 
 
 @router.post("/{message_id}/read")

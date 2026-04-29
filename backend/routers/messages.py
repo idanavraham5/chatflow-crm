@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import Optional, List
@@ -148,14 +148,18 @@ async def send_message(
 @router.post("/send-template")
 async def send_wa_template(
     conversation_id: int,
-    template_name: str,
-    customer_name: str = "",
-    agent_name: str = "",
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Send a WhatsApp template message to initiate a conversation."""
     from models import Contact
+    body = await request.json()
+    template_name = body.get("template_name", "")
+    customer_name = body.get("customer_name", "")
+    agent_name = body.get("agent_name", "")
+    extra_vars = body.get("extra_vars", [])
+
     conv = db.query(Conversation).filter(Conversation.id == conversation_id).first()
     if not conv:
         raise HTTPException(status_code=404, detail="Conversation not found")
@@ -164,23 +168,19 @@ async def send_wa_template(
     if not contact:
         raise HTTPException(status_code=404, detail="Contact not found")
 
-    # Template display texts
-    template_contents = {
-        "welcome__message": f"היי {customer_name}, כאן {agent_name} מקבוצת יש לי זכות ממחלקת החזרי מס.\n\nהבדיקה ללא עלות ועל בסיס הצלחה בלבד!\nאין צורך בטפסים מקדימים מראש, אנו עושים עבורך את כל העבודה.\n\nבמידה ואין החזר - אין התחייבות או תשלום מצידכם.\n\nלצורך הבדיקה יש לשלוח אמצעי זיהוי בלבד.\nכאן לשירותך!",
-        "welcome_soker": f"היי {customer_name}, כאן {agent_name} מקבוצת יש לי זכות ממחלקת החזרי מס.\n\nנקבעה לך פגישה טלפונית.\nהבדיקה ללא עלות ועל בסיס הצלחה בלבד!",
-        "welcome_textech": f"אז אנחנו יוצאים לדרך! 🏁\n\n{customer_name}, תקבל הודעות WhatsApp תחת השם Tax Tech.\n\nתודה רבה על שיתוף הפעולה, שיהיה המון בהצלחה!",
-        "no_answer": f"שלום {customer_name}, כאן {agent_name} מקבוצת יש לי זכות.\n\nחזרתי אליך כפי שביקשת אך אין מענה מצידך.\nלהזכירך - הבדיקה ללא עלות ועל בסיס הצלחה בלבד.\n\nמתי נוכל לשוחח?\nכאן לשירותך!",
-        "free": f"שלום רב, {customer_name}\nלשירותך תמיד",
-    }
+    # Build all variables list
+    all_vars = [customer_name, agent_name] + list(extra_vars)
+    all_vars = [v for v in all_vars if v]  # remove empty
 
-    # Build template components with variables
+    # Template display text
+    template_text = f"תבנית: {template_name}\n"
+    if customer_name:
+        template_text += f"לקוח: {customer_name}\n"
+
+    # Build template components with all variables
     components = []
-    if customer_name or agent_name:
-        params = []
-        if customer_name:
-            params.append({"type": "text", "text": customer_name})
-        if agent_name:
-            params.append({"type": "text", "text": agent_name})
+    if all_vars:
+        params = [{"type": "text", "text": v} for v in all_vars]
         components.append({"type": "body", "parameters": params})
 
     try:
@@ -203,8 +203,7 @@ async def send_wa_template(
 
         print(f"📨 Template result: {result}")
 
-        # Save as outbound message with actual content
-        template_text = template_contents.get(template_name, f"📋 תבנית: {template_name}")
+        # Save as outbound message
         msg = Message(
             conversation_id=conversation_id,
             content=template_text,

@@ -141,27 +141,47 @@ export default function ChatWindow({ conversation, onConversationUpdate }) {
     } catch (e) {}
   };
 
-  const handleSendWaTemplate = async (templateName) => {
+  const [editingTemplate, setEditingTemplate] = useState(null);
+  const [templateVars, setTemplateVars] = useState({});
+
+  const waTemplates = [
+    { name: 'welcome__message', label: '👋 הודעת פתיחה', desc: 'הודעת היכרות ראשונית ללקוח חדש',
+      vars: [{key: '1', label: 'שם לקוח'}, {key: '2', label: 'שם נציג'}] },
+    { name: 'welcome_soker', label: '📅 תיאום פגישה', desc: 'תזכורת פגישה טלפונית עם בודק מס',
+      vars: [{key: '1', label: 'שם לקוח'}, {key: '2', label: 'שם נציג'}, {key: '3', label: 'יום (למשל: שני 29.04)'}, {key: '4', label: 'שעה'}, {key: '5', label: 'שם בודק מס'}] },
+    { name: 'welcome_textech', label: '🏁 יוצאים לדרך', desc: 'הודעת תחילת תהליך ללקוח שנרשם',
+      vars: [{key: '1', label: 'שם לקוח'}] },
+    { name: 'no_answer', label: '🔄 אין מענה', desc: 'מעקב כשלקוח לא עונה',
+      vars: [{key: '1', label: 'שם לקוח'}, {key: '2', label: 'שם נציג'}] },
+    { name: 'free', label: '✏️ טקסט חופשי', desc: 'הודעה עם טקסט חופשי',
+      vars: [{key: '1', label: 'טקסט חופשי'}] },
+  ];
+
+  const openTemplateEditor = (template) => {
+    const defaults = {};
+    template.vars.forEach(v => {
+      if (v.label === 'שם לקוח') defaults[v.key] = conversation.contact?.name || '';
+      else if (v.label === 'שם נציג') defaults[v.key] = user?.name || '';
+      else defaults[v.key] = '';
+    });
+    setTemplateVars(defaults);
+    setEditingTemplate(template);
+    setShowWaTemplates(false);
+  };
+
+  const handleSendWaTemplate = async () => {
+    if (!editingTemplate) return;
     setSendingTemplate(true);
     try {
-      const customerName = conversation.contact?.name || '';
-      const agentName = user?.name || '';
-      await sendTemplateMessage(conversation.id, templateName, customerName, agentName);
-      setShowWaTemplates(false);
+      const vars = Object.values(templateVars);
+      await sendTemplateMessage(conversation.id, editingTemplate.name, vars[0] || '', vars[1] || '', vars.slice(2));
+      setEditingTemplate(null);
       fetchMessages();
     } catch (e) {
       alert(e.message || 'שגיאה בשליחת הודעה יזומית');
     }
     setSendingTemplate(false);
   };
-
-  const waTemplates = [
-    { name: 'welcome__message', label: '👋 הודעת פתיחה', desc: 'הודעת היכרות ראשונית ללקוח חדש' },
-    { name: 'welcome_soker', label: '📅 תיאום פגישה', desc: 'תזכורת פגישה טלפונית עם בודק מס' },
-    { name: 'welcome_textech', label: '🏁 יוצאים לדרך', desc: 'הודעת תחילת תהליך ללקוח שנרשם' },
-    { name: 'no_answer', label: '🔄 אין מענה', desc: 'מעקב כשלקוח לא עונה' },
-    { name: 'free', label: '✏️ טקסט חופשי', desc: 'הודעה עם טקסט חופשי' },
-  ];
 
   const hasOutboundMessages = messages.some(m => m.direction === 'outbound' && !m.is_internal_note);
 
@@ -456,19 +476,59 @@ export default function ChatWindow({ conversation, onConversationUpdate }) {
             <h3 className="font-semibold text-sm">📨 שליחת הודעה יזומית</h3>
             <button onClick={() => setShowWaTemplates(false)} className="text-wa-textSecondary hover:text-wa-text">✕</button>
           </div>
-          <p className="text-xs text-wa-textSecondary mb-3">בחר תבנית WhatsApp מאושרת לפתיחת שיחה:</p>
+          <p className="text-xs text-wa-textSecondary mb-3">בחר תבנית WhatsApp מאושרת:</p>
           <div className="space-y-2">
             {waTemplates.map(t => (
               <button
                 key={t.name}
-                onClick={() => handleSendWaTemplate(t.name)}
-                disabled={sendingTemplate}
-                className="w-full text-right p-3 rounded-lg bg-wa-input hover:bg-wa-hover transition disabled:opacity-50"
+                onClick={() => openTemplateEditor(t)}
+                className="w-full text-right p-3 rounded-lg bg-wa-input hover:bg-wa-hover transition"
               >
                 <div className="text-sm font-medium">{t.label}</div>
                 <div className="text-xs text-wa-textSecondary mt-0.5">{t.desc}</div>
               </button>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Template editor modal */}
+      {editingTemplate && (
+        <div className="modal-overlay" onClick={() => setEditingTemplate(null)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold mb-4">{editingTemplate.label}</h3>
+            <p className="text-xs text-wa-textSecondary mb-4">{editingTemplate.desc}</p>
+            <div className="space-y-3">
+              {editingTemplate.vars.map(v => (
+                <div key={v.key}>
+                  <label className="block text-wa-textSecondary text-xs mb-1">{v.label}</label>
+                  {v.label === 'טקסט חופשי' ? (
+                    <textarea
+                      value={templateVars[v.key] || ''}
+                      onChange={(e) => setTemplateVars({...templateVars, [v.key]: e.target.value})}
+                      className="w-full bg-wa-input text-wa-text rounded-lg px-3 py-2 text-sm outline-none resize-none"
+                      rows={3}
+                    />
+                  ) : (
+                    <input
+                      value={templateVars[v.key] || ''}
+                      onChange={(e) => setTemplateVars({...templateVars, [v.key]: e.target.value})}
+                      className="w-full bg-wa-input text-wa-text rounded-lg px-3 py-2 text-sm outline-none"
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-3 mt-5">
+              <button
+                onClick={handleSendWaTemplate}
+                disabled={sendingTemplate}
+                className="flex-1 bg-wa-dark hover:bg-wa-medium text-white py-2.5 rounded-lg font-medium transition disabled:opacity-50"
+              >
+                {sendingTemplate ? 'שולח...' : 'שלח הודעה'}
+              </button>
+              <button onClick={() => setEditingTemplate(null)} className="px-6 py-2.5 text-wa-textSecondary">ביטול</button>
+            </div>
           </div>
         </div>
       )}

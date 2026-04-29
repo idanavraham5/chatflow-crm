@@ -156,7 +156,7 @@ export default function ChatWindow({ conversation, onConversationUpdate }) {
   };
 
   const waTemplates = [
-    { name: 'welcome_message', label: '👋 הודעת פתיחה', desc: 'הודעת היכרות ראשונית ללקוח חדש' },
+    { name: 'welcome__message', label: '👋 הודעת פתיחה', desc: 'הודעת היכרות ראשונית ללקוח חדש' },
     { name: 'welcome_soker', label: '📅 תיאום פגישה', desc: 'תזכורת פגישה טלפונית עם בודק מס' },
     { name: 'welcome_textech', label: '🏁 יוצאים לדרך', desc: 'הודעת תחילת תהליך ללקוח שנרשם' },
     { name: 'no_answer', label: '🔄 אין מענה', desc: 'מעקב כשלקוח לא עונה' },

@@ -107,10 +107,48 @@ export default function MessageBubble({ message, showSender, onContextMenu }) {
           </div>
         )}
 
-        {!['file', 'sticker', 'location', 'contact'].includes(message.message_type) && message.content && (
-          <p className="text-sm text-wa-text whitespace-pre-wrap leading-relaxed">{message.content}</p>
-        )}
-        {['location', 'contact'].includes(message.message_type) ? null : null}
+        {!['file', 'sticker', 'location', 'contact'].includes(message.message_type) && message.content && (() => {
+          const content = message.content;
+          const hasButtons = content.includes('🔘') || content.includes('🔗');
+          const hasFooter = content.includes('קבוצת יש לי זכות |');
+
+          if (hasButtons || hasFooter) {
+            const lines = content.split('\n');
+            const bodyLines = [];
+            const footerLines = [];
+            const buttonLines = [];
+
+            lines.forEach(line => {
+              if (line.startsWith('🔘') || line.startsWith('🔗')) {
+                buttonLines.push(line);
+              } else if (line.includes('קבוצת יש לי זכות |')) {
+                footerLines.push(line);
+              } else {
+                bodyLines.push(line);
+              }
+            });
+
+            return (
+              <div>
+                <p className="text-sm text-wa-text whitespace-pre-wrap leading-relaxed">{bodyLines.join('\n').trim()}</p>
+                {footerLines.length > 0 && (
+                  <p className="text-[11px] text-wa-textSecondary mt-2 pt-2 border-t border-black/10">{footerLines.join('\n')}</p>
+                )}
+                {buttonLines.length > 0 && (
+                  <div className="mt-2 pt-2 border-t border-black/10 space-y-1.5">
+                    {buttonLines.map((btn, i) => (
+                      <div key={i} className="text-center py-1.5 text-sm text-wa-light font-medium cursor-default border border-wa-light/20 rounded-lg bg-white/50">
+                        {btn}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          }
+
+          return <p className="text-sm text-wa-text whitespace-pre-wrap leading-relaxed">{content}</p>;
+        })()}
 
         <div className="flex items-center justify-end gap-1 mt-1">
           <span className="text-[10px] text-wa-textSecondary">{formatTime(message.created_at)}</span>

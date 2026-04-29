@@ -5,6 +5,7 @@ export default function useWebSocket(onMessage) {
   const [connected, setConnected] = useState(false);
   const reconnectTimeout = useRef(null);
   const onMessageRef = useRef(onMessage);
+  const backoffMs = useRef(3000);
 
   // Keep callback ref fresh without triggering reconnect
   useEffect(() => {
@@ -26,6 +27,7 @@ export default function useWebSocket(onMessage) {
 
         ws.onopen = () => {
           setConnected(true);
+          backoffMs.current = 3000; // Reset backoff on successful connection
           console.log('WebSocket connected');
         };
 
@@ -40,7 +42,9 @@ export default function useWebSocket(onMessage) {
 
         ws.onclose = () => {
           setConnected(false);
-          reconnectTimeout.current = setTimeout(connect, 3000);
+          const delay = backoffMs.current;
+          backoffMs.current = Math.min(backoffMs.current * 2, 60000);
+          reconnectTimeout.current = setTimeout(connect, delay);
         };
 
         ws.onerror = () => {
@@ -50,7 +54,9 @@ export default function useWebSocket(onMessage) {
         wsRef.current = ws;
       } catch (e) {
         console.error('WS connect error:', e);
-        reconnectTimeout.current = setTimeout(connect, 3000);
+        const delay = backoffMs.current;
+        backoffMs.current = Math.min(backoffMs.current * 2, 60000);
+        reconnectTimeout.current = setTimeout(connect, delay);
       }
     }
 

@@ -79,12 +79,21 @@ def refresh_token(request: Request, db: Session = Depends(get_db)):
 
 
 @router.post("/logout")
-def logout(request: Request, current_user: User = Depends(get_current_user)):
-    """Invalidate the current access token."""
+async def logout(request: Request, current_user: User = Depends(get_current_user)):
+    """Invalidate the current access token and refresh token."""
     auth_header = request.headers.get("authorization", "")
     if auth_header.lower().startswith("bearer "):
         token = auth_header[7:]
         blacklist_token(token)
+
+    # Also blacklist refresh token if provided in the request body
+    try:
+        body = await request.json()
+        refresh_token = body.get("refresh_token")
+        if refresh_token:
+            blacklist_token(refresh_token)
+    except Exception:
+        pass  # No body or invalid JSON is fine — access token is already blacklisted
 
     log_action(current_user.id, "LOGOUT", "")
     return {"message": "Logged out successfully"}

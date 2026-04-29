@@ -85,8 +85,13 @@ async function request(url, options = {}) {
 export const login = (username, password) =>
   request('/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) });
 
-export const logout = () =>
-  request('/auth/logout', { method: 'POST' }).catch(() => {});
+export const logout = () => {
+  const refreshToken = getRefreshToken();
+  return request('/auth/logout', {
+    method: 'POST',
+    body: JSON.stringify({ refresh_token: refreshToken || undefined })
+  }).catch(() => {});
+};
 
 export const getMe = () => request('/auth/me');
 

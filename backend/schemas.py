@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime
 from enum import Enum
@@ -257,7 +257,7 @@ class CampaignCreate(BaseModel):
     name: str
     target_type: str = "manual"
     target_value: Optional[str] = None
-    message_text: str
+    message_text: str = Field(..., max_length=4096)
     buttons: Optional[List[dict]] = None
     contact_ids: Optional[List[int]] = None
 

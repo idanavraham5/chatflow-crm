@@ -3,14 +3,26 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import Optional, List
 from datetime import datetime
+import html
 from database import get_db
-from models import User, Conversation, Message, MessageDirection, ReadStatus, ConversationStatus
+from models import User, Conversation, Message, MessageDirection, ReadStatus, ConversationStatus, UserRole
 from schemas import MessageCreate, MessageResponse
-from auth import get_current_user, log_action, sanitize_input
+from auth import get_current_user, log_action, sanitize_input, sanitize_search
 from websocket_manager import manager
 from whatsapp import send_text_message, send_image_message, send_document_message, send_template_message, send_audio_message, upload_media
 
 router = APIRouter(prefix="/api/conversations/{conversation_id}/messages", tags=["messages"])
+
+
+def check_conversation_access(conv: Conversation, current_user: User):
+    """Verify user has access to this conversation. Raises 403 if not."""
+    if current_user.role == UserRole.admin:
+        return
+    if conv.owner_id == current_user.id:
+        return
+    if current_user.id in (conv.shared_with or []):
+        return
+    raise HTTPException(status_code=403, detail="Access denied")
 
 
 def message_to_response(msg, db) -> MessageResponse:
@@ -43,13 +55,19 @@ def get_messages(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    conv = db.query(Conversation).filter(Conversation.id == conversation_id).first()
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    check_conversation_access(conv, current_user)
+
     query = db.query(Message).filter(
         Message.conversation_id == conversation_id,
         Message.deleted_at.is_(None)
     )
 
     if search:
-        query = query.filter(Message.content.ilike(f"%{search}%"))
+        clean_search = sanitize_search(search)
+        query = query.filter(Message.content.ilike(f"%{clean_search}%"))
 
     # Non-admin agents can't see internal notes from other agents
     messages = query.order_by(Message.created_at.asc()).all()
@@ -66,6 +84,7 @@ async def send_message(
     conv = db.query(Conversation).filter(Conversation.id == conversation_id).first()
     if not conv:
         raise HTTPException(status_code=404, detail="Conversation not found")
+    check_conversation_access(conv, current_user)
 
     # Sanitize message content
     clean_content = sanitize_input(msg.content, max_length=5000)
@@ -163,14 +182,15 @@ async def send_wa_template(
     conv = db.query(Conversation).filter(Conversation.id == conversation_id).first()
     if not conv:
         raise HTTPException(status_code=404, detail="Conversation not found")
+    check_conversation_access(conv, current_user)
 
     contact = db.query(Contact).filter(Contact.id == conv.contact_id).first()
     if not contact:
         raise HTTPException(status_code=404, detail="Contact not found")
 
-    # Build all variables list
+    # Build all variables list — escape user-supplied values to prevent injection
     all_vars = [customer_name, agent_name] + list(extra_vars)
-    all_vars = [v for v in all_vars if v]  # remove empty
+    all_vars = [html.escape(str(v)) for v in all_vars if v]
 
     # Template display text - show full content as customer sees it
     v = all_vars + [''] * 10  # pad with empty strings to avoid index errors
@@ -250,6 +270,7 @@ async def upload_voice(
     conv = db.query(Conversation).filter(Conversation.id == conversation_id).first()
     if not conv:
         raise HTTPException(status_code=404, detail="Conversation not found")
+    check_conversation_access(conv, current_user)
 
     file_bytes = await file.read()
     mime_type = file.content_type or "audio/ogg"
@@ -310,6 +331,11 @@ def mark_read(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    conv = db.query(Conversation).filter(Conversation.id == conversation_id).first()
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    check_conversation_access(conv, current_user)
+
     db.query(Message).filter(
         Message.conversation_id == conversation_id,
         Message.direction == MessageDirection.inbound,
@@ -326,6 +352,11 @@ def delete_message(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    conv = db.query(Conversation).filter(Conversation.id == conversation_id).first()
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    check_conversation_access(conv, current_user)
+
     msg = db.query(Message).filter(
         Message.id == message_id,
         Message.conversation_id == conversation_id

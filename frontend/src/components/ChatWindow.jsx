@@ -156,8 +156,11 @@ export default function ChatWindow({ conversation, onConversationUpdate }) {
   };
 
   const waTemplates = [
-    { name: 'welcome_yesh_li_zchut', label: '👋 הודעת פתיחה', desc: 'הודעת היכרות ראשונית ללקוח חדש' },
-    { name: 'no_answer_followup', label: '🔄 אין מענה', desc: 'מעקב כשלקוח לא עונה' },
+    { name: 'welcome_message', label: '👋 הודעת פתיחה', desc: 'הודעת היכרות ראשונית ללקוח חדש' },
+    { name: 'welcome_soker', label: '📅 תיאום פגישה', desc: 'תזכורת פגישה טלפונית עם בודק מס' },
+    { name: 'welcome_textech', label: '🏁 יוצאים לדרך', desc: 'הודעת תחילת תהליך ללקוח שנרשם' },
+    { name: 'no_answer', label: '🔄 אין מענה', desc: 'מעקב כשלקוח לא עונה' },
+    { name: 'free', label: '✏️ טקסט חופשי', desc: 'הודעה עם טקסט חופשי' },
   ];
 
   const hasOutboundMessages = messages.some(m => m.direction === 'outbound' && !m.is_internal_note);

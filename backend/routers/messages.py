@@ -166,8 +166,11 @@ async def send_wa_template(
 
     # Template display texts
     template_contents = {
-        "welcome_yesh_li_zchut": f"היי {customer_name}, כאן {agent_name} מקבוצת יש לי זכות ממחלקת החזרי מס.\n\nהבדיקה ללא עלות ועל בסיס הצלחה בלבד!\nאין צורך בטפסים מקדימים מראש, אנו עושים עבורך את כל העבודה.\n\nלצורך הבדיקה יש לשלוח אמצעי זיהוי בלבד.\nכאן לשירותך!",
-        "no_answer_followup": f"שלום {customer_name}, כאן {agent_name} מקבוצת יש לי זכות.\n\nחזרתי אלייך כפי שביקשת אך אין מענה מצידך.\nלהזכירך - הבדיקה ללא עלות ועל בסיס הצלחה בלבד.\n\nמתי נוכל לשוחח?\nכאן לשירותך!",
+        "welcome_message": f"היי {customer_name}, כאן {agent_name} מקבוצת יש לי זכות ממחלקת החזרי מס.\n\nהבדיקה ללא עלות ועל בסיס הצלחה בלבד!\nאין צורך בטפסים מקדימים מראש, אנו עושים עבורך את כל העבודה.\n\nבמידה ואין החזר - אין התחייבות או תשלום מצידכם.\n\nלצורך הבדיקה יש לשלוח אמצעי זיהוי בלבד.\nכאן לשירותך!",
+        "welcome_soker": f"היי {customer_name}, כאן {agent_name} מקבוצת יש לי זכות ממחלקת החזרי מס.\n\nנקבעה לך פגישה טלפונית.\nהבדיקה ללא עלות ועל בסיס הצלחה בלבד!",
+        "welcome_textech": f"אז אנחנו יוצאים לדרך! 🏁\n\n{customer_name}, תקבל הודעות WhatsApp תחת השם Tax Tech.\n\nתודה רבה על שיתוף הפעולה, שיהיה המון בהצלחה!",
+        "no_answer": f"שלום {customer_name}, כאן {agent_name} מקבוצת יש לי זכות.\n\nחזרתי אליך כפי שביקשת אך אין מענה מצידך.\nלהזכירך - הבדיקה ללא עלות ועל בסיס הצלחה בלבד.\n\nמתי נוכל לשוחח?\nכאן לשירותך!",
+        "free": f"שלום רב, {customer_name}\nלשירותך תמיד",
     }
 
     # Build template components with variables
@@ -274,7 +277,7 @@ async def upload_voice(
     msg_type = "voice" if type == "voice" else "audio"
     msg = Message(
         conversation_id=conversation_id,
-        content="🎤 הודעה קולית" if type == "voice" else filename,
+        content="הודעה קולית" if type == "voice" else filename,
         message_type=msg_type,
         media_url=media_url,
         direction=MessageDirection.outbound,

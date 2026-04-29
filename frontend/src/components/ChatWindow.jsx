@@ -160,9 +160,7 @@ export default function ChatWindow({ conversation, onConversationUpdate }) {
   const openTemplateEditor = (template) => {
     const defaults = {};
     template.vars.forEach(v => {
-      if (v.label === 'שם לקוח') defaults[v.key] = conversation.contact?.name || '';
-      else if (v.label === 'שם נציג') defaults[v.key] = user?.name || '';
-      else defaults[v.key] = '';
+      defaults[v.key] = '';
     });
     setTemplateVars(defaults);
     setEditingTemplate(template);

@@ -186,9 +186,9 @@ async def send_wa_template(
     if not contact:
         raise HTTPException(status_code=404, detail="Contact not found")
 
-    # Build all variables list — escape user-supplied values to prevent injection
+    # Build all variables list — keep ALL variables including empty ones
     all_vars = [customer_name, agent_name] + list(extra_vars)
-    all_vars = [html.escape(str(v)) for v in all_vars if v]
+    all_vars = [str(v) if v else " " for v in all_vars]  # Replace empty with space (WhatsApp rejects empty params)
 
     # Template display text - show full content as customer sees it
     v = all_vars + [''] * 10  # pad with empty strings to avoid index errors
@@ -212,6 +212,8 @@ async def send_wa_template(
         # Always use current default phone_id (conversations may have old IDs)
         phone_id = get_default_phone_id()
         print(f"📨 Sending template '{template_name}' to {contact.phone} via phone_id={phone_id}")
+        print(f"📨 Variables: {all_vars}")
+        print(f"📨 Components: {components}")
 
         result = await send_template_message(
             phone=contact.phone,

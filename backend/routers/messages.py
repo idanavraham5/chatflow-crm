@@ -225,6 +225,9 @@ async def send_wa_template(
 
         print(f"📨 Template result: {result}")
 
+        # Extract WhatsApp message ID for status tracking
+        wa_msg_id = result.get("messages", [{}])[0].get("id") if result else None
+
         # Save as outbound message
         msg = Message(
             conversation_id=conversation_id,
@@ -233,7 +236,8 @@ async def send_wa_template(
             direction=MessageDirection.outbound,
             sent_by=current_user.id,
             is_internal_note=False,
-            read_status=ReadStatus.sent
+            read_status=ReadStatus.sent,
+            wa_message_id=wa_msg_id
         )
         db.add(msg)
         conv.last_message_at = func.now()
@@ -272,29 +276,29 @@ async def upload_voice(
     mime_type = file.content_type or "audio/ogg"
     filename = file.filename or "voice.ogg"
 
-    # Get phone_id
+    # Always use current default phone_id
     from whatsapp import get_default_phone_id
-    phone_id = conv.phone_number_id
-    if phone_id and ":" in phone_id:
-        phone_id = phone_id.split(":")[0]
-    if not phone_id:
-        phone_id = get_default_phone_id()
+    phone_id = get_default_phone_id()
 
     media_url = None
     try:
         # Upload to WhatsApp CDN
+        print(f"🎤 Uploading voice: {len(file_bytes)} bytes, mime={mime_type}, phone_id={phone_id}")
         upload_result = await upload_media(file_bytes, mime_type, filename, phone_id)
         media_id = upload_result.get("id")
+        print(f"🎤 Upload result: {upload_result}")
 
         if media_id:
             # Send audio message to customer
-            from models import Contact
             contact = db.query(Contact).filter(Contact.id == conv.contact_id).first()
             if contact:
-                await send_audio_message(contact.phone, audio_id=media_id, phone_number_id=phone_id)
+                send_result = await send_audio_message(contact.phone, audio_id=media_id, phone_number_id=phone_id)
+                print(f"🎤 Send result: {send_result}")
             media_url = f"wa-media://{media_id}"
     except Exception as e:
         print(f"❌ Voice upload/send error: {e}")
+        import traceback
+        traceback.print_exc()
 
     msg_type = "voice" if type == "voice" else "audio"
     msg = Message(

@@ -115,10 +115,8 @@ async def send_message(
             from models import Contact
             contact = db.query(Contact).filter(Contact.id == conv.contact_id).first()
             if contact:
-                phone_id = conv.phone_number_id
-                # Fix legacy phone_id format (might contain :display_name)
-                if phone_id and ":" in phone_id:
-                    phone_id = phone_id.split(":")[0]
+                from whatsapp import get_default_phone_id as get_default_pid
+                phone_id = get_default_pid()  # Always use current default
 
                 if msg.message_type in ("image",) and msg.media_url:
                     wa_result = await send_image_message(contact.phone, image_url=msg.media_url, phone_number_id=phone_id)
@@ -211,12 +209,8 @@ async def send_wa_template(
 
     try:
         from whatsapp import get_default_phone_id
-        phone_id = conv.phone_number_id
-        # Fix legacy phone_id format (might contain :display_name)
-        if phone_id and ":" in phone_id:
-            phone_id = phone_id.split(":")[0]
-        if not phone_id:
-            phone_id = get_default_phone_id()
+        # Always use current default phone_id (conversations may have old IDs)
+        phone_id = get_default_phone_id()
         print(f"📨 Sending template '{template_name}' to {contact.phone} via phone_id={phone_id}")
 
         result = await send_template_message(

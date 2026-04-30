@@ -274,6 +274,9 @@ async def upload_voice(
 
     file_bytes = await file.read()
     mime_type = file.content_type or "audio/ogg"
+    # WhatsApp only accepts clean mime types without codec params
+    if ";" in mime_type:
+        mime_type = mime_type.split(";")[0].strip()
     filename = file.filename or "voice.ogg"
 
     # Always use current default phone_id

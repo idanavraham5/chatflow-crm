@@ -100,7 +100,7 @@ async def send_message(
         read_status=ReadStatus.sent
     )
     db.add(new_msg)
-    conv.last_message_at = func.now()
+    conv.last_message_at = datetime.utcnow()
 
     # Auto-assign: if conversation has no owner and agent sends a message, assign to them
     if conv.owner_id is None and not msg.is_internal_note:
@@ -235,7 +235,7 @@ async def send_wa_template(
             wa_message_id=wa_msg_id
         )
         db.add(msg)
-        conv.last_message_at = func.now()
+        conv.last_message_at = datetime.utcnow()
 
         # Auto-assign if unassigned
         if conv.owner_id is None:
@@ -310,7 +310,7 @@ async def upload_voice(
         read_status=ReadStatus.sent
     )
     db.add(msg)
-    conv.last_message_at = func.now()
+    conv.last_message_at = datetime.utcnow()
 
     if conv.owner_id is None:
         conv.owner_id = current_user.id

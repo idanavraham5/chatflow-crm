@@ -345,6 +345,10 @@ def parse_webhook_payload(payload: dict) -> list:
                     if contacts:
                         contact = contacts[0]
 
+                    # Extract context (present in button replies, quote replies, etc.)
+                    context = message.get("context")
+                    context_message_id = context.get("id") if context else None
+
                     events.append({
                         "type": "message",
                         "phone_number_id": phone_number_id,
@@ -352,7 +356,8 @@ def parse_webhook_payload(payload: dict) -> list:
                         "contact_name": contact.get("profile", {}).get("name") if contact else None,
                         "message_id": message.get("id"),
                         "timestamp": message.get("timestamp"),
-                        "message": message
+                        "message": message,
+                        "context_message_id": context_message_id
                     })
 
                 # Status updates (sent, delivered, read)

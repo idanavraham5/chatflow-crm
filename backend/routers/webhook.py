@@ -79,6 +79,7 @@ async def _handle_incoming_message(event: dict, db: Session):
     phone_number_id = event["phone_number_id"]
     wa_message_id = event["message_id"]
     raw_message = event["message"]
+    context_message_id = event.get("context_message_id")  # For button replies — links to original template
 
     # Extract message content
     msg_data = extract_message_content(raw_message)
@@ -122,10 +123,26 @@ async def _handle_incoming_message(event: dict, db: Session):
         contact.name = contact_name
 
     # ── Find or create conversation ──
-    conv = db.query(Conversation).filter(
-        Conversation.contact_id == contact.id,
-        Conversation.status != ConversationStatus.closed
-    ).first()
+    conv = None
+
+    # If this is a button/reply to a specific message (e.g. template button click),
+    # find the conversation that contains the original message
+    if context_message_id:
+        original_msg = db.query(Message).filter(Message.wa_message_id == context_message_id).first()
+        if original_msg:
+            conv = db.query(Conversation).filter(Conversation.id == original_msg.conversation_id).first()
+            print(f"🔗 Button reply linked to conversation {conv.id} via context message {context_message_id}")
+            # Reopen if closed — customer responded to our template
+            if conv and conv.status == ConversationStatus.closed:
+                conv.status = ConversationStatus.open
+                print(f"🔓 Reopened closed conversation {conv.id} due to button reply")
+
+    # Fallback: find any open conversation for this contact
+    if not conv:
+        conv = db.query(Conversation).filter(
+            Conversation.contact_id == contact.id,
+            Conversation.status != ConversationStatus.closed
+        ).first()
 
     is_new_conversation = False
     if not conv:

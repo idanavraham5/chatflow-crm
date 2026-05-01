@@ -1,6 +1,8 @@
 fastapi
 uvicorn[standard]
+gunicorn
 sqlalchemy
+psycopg2-binary
 aiosqlite
 python-jose[cryptography]
 bcrypt

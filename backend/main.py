@@ -113,15 +113,9 @@ async def mock_incoming_messages():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # One-time DB reset: delete old demo database and start fresh
-    if os.getenv("RESET_DB") == "true":
-        from database import DB_PATH
-        if os.path.exists(DB_PATH):
-            os.remove(DB_PATH)
-            print("🗑️ Old database deleted for fresh start")
-
-    # Create tables
+    # Create tables (works for both SQLite and PostgreSQL)
     Base.metadata.create_all(bind=engine)
+    print("✅ Database tables ready")
 
     # Seed data
     db = SessionLocal()

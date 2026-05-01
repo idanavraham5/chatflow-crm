@@ -45,14 +45,25 @@ if not audit_logger.handlers:
     ))
     audit_logger.addHandler(handler)
 
-# ─── Token Blacklist (in-memory; use Redis in production) ────────
-_token_blacklist: Set[str] = set()
+# ─── Token Blacklist (in-memory with auto-cleanup) ──────────────
+_token_blacklist: dict = {}  # {token: expiry_datetime}
 
 def blacklist_token(token: str):
-    _token_blacklist.add(token)
+    # Token expires after ACCESS_TOKEN_EXPIRE_MINUTES — no need to keep forever
+    expiry = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES + 5)
+    _token_blacklist[token] = expiry
 
 def is_token_blacklisted(token: str) -> bool:
     return token in _token_blacklist
+
+def cleanup_expired_tokens():
+    """Remove expired tokens from blacklist to free memory."""
+    now = datetime.utcnow()
+    expired = [t for t, exp in _token_blacklist.items() if now > exp]
+    for t in expired:
+        _token_blacklist.pop(t, None)
+    if expired:
+        print(f"🧹 Cleaned {len(expired)} expired tokens from blacklist")
 
 # ─── Login Rate Limiting ────────────────────────────────────────
 _login_attempts: dict = {}  # {ip: {"count": int, "last_attempt": datetime, "locked_until": datetime}}
@@ -94,6 +105,16 @@ def record_failed_login(ip: str) -> None:
 def record_successful_login(ip: str) -> None:
     """Clear failed attempts on successful login."""
     _login_attempts.pop(ip, None)
+
+def cleanup_old_login_attempts():
+    """Remove stale login attempt records older than 1 hour."""
+    now = datetime.utcnow()
+    stale = [ip for ip, rec in _login_attempts.items()
+             if (now - rec.get("last_attempt", now)).total_seconds() > 3600]
+    for ip in stale:
+        _login_attempts.pop(ip, None)
+    if stale:
+        print(f"🧹 Cleaned {len(stale)} stale login attempt records")
 
 
 # ─── Password Hashing (bcrypt with configurable rounds) ─────────

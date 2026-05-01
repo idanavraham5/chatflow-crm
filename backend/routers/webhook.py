@@ -3,8 +3,9 @@ WhatsApp Cloud API Webhook — receives incoming messages and status updates fro
 """
 from fastapi import APIRouter, Request, HTTPException, Depends, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from datetime import datetime
-from database import get_db
+from database import get_db, DATABASE_URL
 from models import (
     Contact, Conversation, Message, User, UserRole,
     ConversationStatus, MessageType, MessageDirection, ReadStatus, CategoryType
@@ -146,20 +147,31 @@ async def _handle_incoming_message(event: dict, db: Session):
 
     is_new_conversation = False
     if not conv:
-        is_new_conversation = True
-        conv = Conversation(
-            contact_id=contact.id,
-            owner_id=None,  # Unassigned — will appear in "לא הוקצתה" tab
-            status=ConversationStatus.open,
-            category=contact.category,
-            phone_number_id=phone_number_id,  # Track which number received this
-            is_new=True,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
-            last_message_at=datetime.utcnow()
-        )
-        db.add(conv)
-        db.flush()
+        # Lock to prevent race condition — two messages creating duplicate conversations
+        if "postgresql" in DATABASE_URL:
+            db.execute(text("SELECT pg_advisory_xact_lock(:id)"), {"id": contact.id})
+
+        # Re-check after lock (another request may have created it)
+        conv = db.query(Conversation).filter(
+            Conversation.contact_id == contact.id,
+            Conversation.status != ConversationStatus.closed
+        ).first()
+
+        if not conv:
+            is_new_conversation = True
+            conv = Conversation(
+                contact_id=contact.id,
+                owner_id=None,
+                status=ConversationStatus.open,
+                category=contact.category,
+                phone_number_id=phone_number_id,
+                is_new=True,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow(),
+                last_message_at=datetime.utcnow()
+            )
+            db.add(conv)
+            db.flush()
     else:
         # Update phone_number_id if not set
         if not conv.phone_number_id:

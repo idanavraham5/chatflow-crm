@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from database import engine, Base, SessionLocal, get_db
 from models import User, Conversation, Message, Contact, MessageDirection, ReadStatus, MessageType, ConversationStatus
 from websocket_manager import manager
-from auth import SECRET_KEY, ALGORITHM
+from auth import SECRET_KEY, ALGORITHM, cleanup_expired_tokens, cleanup_old_login_attempts
 from seed_data import seed
 
 from routers import auth as auth_router
@@ -134,9 +134,25 @@ async def lifespan(app: FastAPI):
     else:
         print("✅ WhatsApp Cloud API connected — mock messages disabled")
 
+    # Start WebSocket keepalive ping loop
+    ping_task = asyncio.create_task(manager.start_ping_loop())
+    print("✅ WebSocket keepalive started (ping every 25s)")
+
+    # Start memory cleanup task (every 10 minutes)
+    async def memory_cleanup_loop():
+        while True:
+            await asyncio.sleep(600)  # 10 minutes
+            cleanup_expired_tokens()
+            cleanup_old_login_attempts()
+
+    cleanup_task = asyncio.create_task(memory_cleanup_loop())
+    print("✅ Memory cleanup scheduled (every 10 min)")
+
     yield
 
     # Cleanup
+    ping_task.cancel()
+    cleanup_task.cancel()
     if mock_task:
         mock_task.cancel()
 
@@ -237,9 +253,18 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(None)):
     await manager.connect(websocket, user_id)
     try:
         while True:
-            data = await websocket.receive_text()
-            # Handle ping/pong or other client messages
+            try:
+                data = await asyncio.wait_for(websocket.receive_text(), timeout=60)
+                # Client sends "pong" in response to our ping — connection is alive
+            except asyncio.TimeoutError:
+                # No message in 60s — check if connection is still alive
+                try:
+                    await websocket.send_json({"type": "ping"})
+                except Exception:
+                    break  # Connection dead
     except WebSocketDisconnect:
+        pass
+    finally:
         manager.disconnect(user_id)
 
 

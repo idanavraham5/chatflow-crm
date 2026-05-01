@@ -1,9 +1,9 @@
 import React from 'react';
 
 function ReadCheck({ status }) {
-  if (status === 'read') return <span className="check-mark read">✓✓</span>;
-  if (status === 'delivered') return <span className="check-mark delivered">✓✓</span>;
-  return <span className="check-mark sent">✓</span>;
+  if (status === 'read') return <span className="text-[11px] text-blue-500 font-bold">✓✓</span>;
+  if (status === 'delivered') return <span className="text-[11px] text-wa-textSecondary">✓✓</span>;
+  return <span className="text-[11px] text-wa-textSecondary">✓</span>;
 }
 
 function formatTime(dateStr) {

@@ -230,6 +230,8 @@ async def _handle_status_update(event: dict, db: Session):
     wa_message_id = event.get("message_id")
     status = event.get("status")
 
+    print(f"📊 Status update: wa_id={wa_message_id}, status={status}")
+
     if not wa_message_id or not status:
         return
 
@@ -247,7 +249,9 @@ async def _handle_status_update(event: dict, db: Session):
     # Find the message by WhatsApp message ID
     msg = db.query(Message).filter(Message.wa_message_id == wa_message_id).first()
     if not msg:
+        print(f"📊 Message not found for wa_id={wa_message_id}")
         return
+    print(f"📊 Found message {msg.id}, current status={msg.read_status}, new status={new_status}")
 
     # Only update if status is "higher" (sent → delivered → read)
     status_order = {ReadStatus.sent: 1, ReadStatus.delivered: 2, ReadStatus.read: 3}

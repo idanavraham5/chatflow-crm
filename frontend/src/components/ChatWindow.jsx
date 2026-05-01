@@ -171,8 +171,8 @@ export default function ChatWindow({ conversation, onConversationUpdate }) {
     if (!editingTemplate) return;
     setSendingTemplate(true);
     try {
-      const vars = Object.values(templateVars);
-      await sendTemplateMessage(conversation.id, editingTemplate.name, vars[0] || '', vars[1] || '', vars.slice(2));
+      const vars = Object.values(templateVars).filter(v => v);
+      await sendTemplateMessage(conversation.id, editingTemplate.name, vars);
       setEditingTemplate(null);
       fetchMessages();
     } catch (e) {

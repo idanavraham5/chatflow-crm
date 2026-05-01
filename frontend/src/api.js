@@ -133,10 +133,10 @@ export const getMessages = (convId, search = '') => {
 export const sendMessage = (convId, data) =>
   request(`/conversations/${convId}/messages/`, { method: 'POST', body: JSON.stringify(data) });
 
-export const sendTemplateMessage = (convId, templateName, customerName, agentName, extraVars = []) =>
+export const sendTemplateMessage = (convId, templateName, vars = []) =>
   request(`/conversations/${convId}/messages/send-template`, {
     method: 'POST',
-    body: JSON.stringify({ template_name: templateName, customer_name: customerName, agent_name: agentName, extra_vars: extraVars })
+    body: JSON.stringify({ template_name: templateName, vars: vars })
   });
 
 export const markRead = (convId, msgId) =>

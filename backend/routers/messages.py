@@ -173,9 +173,8 @@ async def send_wa_template(
     from models import Contact
     body = await request.json()
     template_name = body.get("template_name", "")
-    customer_name = body.get("customer_name", "")
-    agent_name = body.get("agent_name", "")
-    extra_vars = body.get("extra_vars", [])
+    all_vars = body.get("vars", [])
+    all_vars = [str(v) for v in all_vars if v]  # Only non-empty vars
 
     conv = db.query(Conversation).filter(Conversation.id == conversation_id).first()
     if not conv:
@@ -185,10 +184,6 @@ async def send_wa_template(
     contact = db.query(Contact).filter(Contact.id == conv.contact_id).first()
     if not contact:
         raise HTTPException(status_code=404, detail="Contact not found")
-
-    # Build all variables list — keep ALL variables including empty ones
-    all_vars = [customer_name, agent_name] + list(extra_vars)
-    all_vars = [str(v) if v else " " for v in all_vars]  # Replace empty with space (WhatsApp rejects empty params)
 
     # Template display text - show full content as customer sees it
     v = all_vars + [''] * 10  # pad with empty strings to avoid index errors

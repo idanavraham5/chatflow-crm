@@ -25,12 +25,15 @@ def check_conversation_access(conv: Conversation, current_user: User):
     raise HTTPException(status_code=403, detail="Access denied")
 
 
-def message_to_response(msg, db) -> MessageResponse:
+def message_to_response(msg, sender_map: dict = None, db=None) -> MessageResponse:
     sender_name = None
     if msg.sent_by:
-        sender = db.query(User).filter(User.id == msg.sent_by).first()
-        if sender:
-            sender_name = sender.name
+        if sender_map and msg.sent_by in sender_map:
+            sender_name = sender_map[msg.sent_by]
+        elif db:
+            sender = db.query(User).filter(User.id == msg.sent_by).first()
+            if sender:
+                sender_name = sender.name
     return MessageResponse(
         id=msg.id,
         conversation_id=msg.conversation_id,
@@ -46,6 +49,12 @@ def message_to_response(msg, db) -> MessageResponse:
         deleted_at=msg.deleted_at,
         created_at=msg.created_at
     )
+
+
+def _build_sender_map(db) -> dict:
+    """Load all users once — avoids N+1 queries when listing messages."""
+    users = db.query(User).all()
+    return {u.id: u.name for u in users}
 
 
 @router.get("/", response_model=List[MessageResponse])
@@ -71,7 +80,8 @@ def get_messages(
 
     # Non-admin agents can't see internal notes from other agents
     messages = query.order_by(Message.created_at.asc()).all()
-    return [message_to_response(m, db) for m in messages]
+    sender_map = _build_sender_map(db)  # 1 query instead of N
+    return [message_to_response(m, sender_map=sender_map) for m in messages]
 
 
 @router.post("/", response_model=MessageResponse)
@@ -137,7 +147,7 @@ async def send_message(
             new_msg.read_status = ReadStatus.sent  # Mark as sent even if WA fails
         db.commit()
 
-    response = message_to_response(new_msg, db)
+    response = message_to_response(new_msg, db=db)
 
     # Notify via WebSocket
     notify_users = set()
@@ -319,7 +329,7 @@ async def upload_voice(
     db.commit()
     db.refresh(msg)
 
-    return message_to_response(msg, db)
+    return message_to_response(msg, db=db)
 
 
 @router.post("/{message_id}/read")

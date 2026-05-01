@@ -4,7 +4,7 @@ from sqlalchemy import func, or_, and_
 from typing import Optional, List
 from datetime import datetime
 from database import get_db
-from models import User, Conversation, Message, Contact, ConversationStatus, CategoryType, PriorityLevel
+from models import User, Conversation, Message, Contact, ConversationStatus, CategoryType, PriorityLevel, UserRole
 from whatsapp import get_default_phone_id
 from schemas import ConversationResponse, ConversationCreate, ConversationUpdate, TransferRequest, ShareRequest
 from auth import get_current_user, log_action, sanitize_search
@@ -260,6 +260,7 @@ async def transfer_conversation(
     if not conv:
         raise HTTPException(status_code=404, detail="Conversation not found")
 
+    # All agents can transfer — small team workflow (soker ↔ agent ↔ manager)
     old_owner = conv.owner_id
     conv.owner_id = req.agent_id
     conv.status = ConversationStatus.in_progress
@@ -287,11 +288,11 @@ async def share_conversation(
     if not conv:
         raise HTTPException(status_code=404, detail="Conversation not found")
 
-    shared = conv.shared_with or []
-    if req.agent_id not in shared:
-        shared.append(req.agent_id)
-        conv.shared_with = shared
-        db.commit()
+    # All agents can share — small team workflow
+    # Use set to prevent duplicates
+    shared = list(set((conv.shared_with or []) + [req.agent_id]))
+    conv.shared_with = shared
+    db.commit()
 
     log_action(current_user.id, "CONV_SHARED", f"conv={conversation_id} shared_with={req.agent_id}")
 

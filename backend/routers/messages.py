@@ -15,14 +15,10 @@ router = APIRouter(prefix="/api/conversations/{conversation_id}/messages", tags=
 
 
 def check_conversation_access(conv: Conversation, current_user: User):
-    """Verify user has access to this conversation. Raises 403 if not."""
-    if current_user.role == UserRole.admin:
-        return
-    if conv.owner_id == current_user.id:
-        return
-    if current_user.id in (conv.shared_with or []):
-        return
-    raise HTTPException(status_code=403, detail="Access denied")
+    """Verify user has access to this conversation.
+    All authenticated agents can access all conversations (small team workflow).
+    """
+    return  # Allow all authenticated users — small team workflow
 
 
 def message_to_response(msg, sender_map: dict = None, db=None) -> MessageResponse:

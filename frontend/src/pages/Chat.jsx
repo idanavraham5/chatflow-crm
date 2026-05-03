@@ -33,7 +33,15 @@ export default function Chat() {
     if (data.type === 'message_status') {
       // Real-time read status update (sent → delivered → read)
       if (data.conversation_id === selectedConv?.id) {
-        setSelectedConv(prev => ({ ...prev, _refresh: Date.now() }));
+        setSelectedConv(prev => ({
+          ...prev,
+          _statusUpdate: {
+            message_id: data.message_id,
+            wa_message_id: data.wa_message_id,
+            status: data.status,
+            timestamp: Date.now()
+          }
+        }));
       }
     }
 

@@ -70,6 +70,21 @@ export default function ChatWindow({ conversation, onConversationUpdate }) {
 
   useEffect(() => { fetchMessages(); }, [conversation?.id, conversation?._refresh, searchQuery]);
 
+  // Real-time status update: update message read_status locally without refetching
+  useEffect(() => {
+    const update = conversation?._statusUpdate;
+    if (!update) return;
+    setMessages(prev => prev.map(msg => {
+      if (msg.id === update.message_id || msg.wa_message_id === update.wa_message_id) {
+        const statusOrder = { sent: 1, delivered: 2, read: 3 };
+        if ((statusOrder[update.status] || 0) > (statusOrder[msg.read_status] || 0)) {
+          return { ...msg, read_status: update.status };
+        }
+      }
+      return msg;
+    }));
+  }, [conversation?._statusUpdate?.timestamp]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);

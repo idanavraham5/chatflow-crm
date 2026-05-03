@@ -360,7 +360,7 @@ def mark_read(
 
 
 @router.delete("/{message_id}")
-def delete_message(
+async def delete_message(
     conversation_id: int,
     message_id: int,
     db: Session = Depends(get_db),
@@ -377,7 +377,20 @@ def delete_message(
     ).first()
     if not msg:
         raise HTTPException(status_code=404, detail="Message not found")
+
+    # Only allow deleting outbound messages sent by the current user (or admin can delete any)
+    if msg.direction == MessageDirection.outbound and msg.sent_by != current_user.id and current_user.role != UserRole.admin:
+        raise HTTPException(status_code=403, detail="You can only delete your own messages")
+
     msg.deleted_at = datetime.utcnow()
     db.commit()
     log_action(current_user.id, "MESSAGE_DELETED", f"msg_id={message_id} conv={conversation_id}")
+
+    # Notify via WebSocket so other users see the deletion in real-time
+    await manager.broadcast({
+        "type": "message_deleted",
+        "conversation_id": conversation_id,
+        "message_id": message_id
+    })
+
     return {"message": "Deleted"}

@@ -45,6 +45,16 @@ export default function Chat() {
       }
     }
 
+    if (data.type === 'message_deleted') {
+      if (data.conversation_id === selectedConv?.id) {
+        setSelectedConv(prev => ({
+          ...prev,
+          _deletedMessage: { message_id: data.message_id, timestamp: Date.now() }
+        }));
+      }
+      setRefreshTrigger(prev => prev + 1);
+    }
+
     if (data.type === 'conversation_transferred' || data.type === 'conversation_shared') {
       setRefreshTrigger(prev => prev + 1);
       showNotification(

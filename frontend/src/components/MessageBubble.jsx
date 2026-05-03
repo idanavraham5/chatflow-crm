@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 function ReadCheck({ status }) {
   if (status === 'read') return <span className="text-[11px] text-blue-500 font-bold">✓✓</span>;
@@ -22,14 +22,26 @@ function resolveMediaUrl(url) {
   return url;
 }
 
-export default function MessageBubble({ message, showSender, onContextMenu }) {
+export default function MessageBubble({ message, showSender, onContextMenu, onDelete }) {
   const isOutbound = message.direction === 'outbound';
   const isNote = message.is_internal_note;
   const mediaUrl = resolveMediaUrl(message.media_url);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const handleContextMenu = (e) => {
     e.preventDefault();
     onContextMenu?.(e, message);
+  };
+
+  const handleDeleteClick = (e) => {
+    e.stopPropagation();
+    setShowConfirm(true);
+  };
+
+  const confirmDelete = (e) => {
+    e.stopPropagation();
+    onDelete?.(message);
+    setShowConfirm(false);
   };
 
   if (isNote) {
@@ -56,12 +68,34 @@ export default function MessageBubble({ message, showSender, onContextMenu }) {
   }
 
   return (
-    <div className={`flex ${isOutbound ? 'justify-start' : 'justify-end'} mb-1 px-16`}>
+    <div className={`flex ${isOutbound ? 'justify-start' : 'justify-end'} mb-1 px-16 group`}>
       <div
         className={`max-w-[65%] rounded-lg px-3 py-2 relative
           ${isOutbound ? 'bg-wa-bubble-out' : 'bg-wa-bubble-in'}`}
         onContextMenu={handleContextMenu}
       >
+        {/* Delete button on hover — outbound only */}
+        {isOutbound && !isNote && (
+          <div className="absolute -top-2 left-0 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+            {showConfirm ? (
+              <div className="flex items-center gap-1 bg-wa-sidebar rounded-lg shadow-lg border border-wa-border px-2 py-1.5">
+                <span className="text-xs text-red-500 font-medium ml-1">למחוק?</span>
+                <button onClick={confirmDelete} className="text-xs bg-red-500 text-white px-2 py-0.5 rounded hover:bg-red-600 transition">כן</button>
+                <button onClick={(e) => { e.stopPropagation(); setShowConfirm(false); }} className="text-xs text-wa-textSecondary px-2 py-0.5 rounded hover:bg-wa-hover transition">לא</button>
+              </div>
+            ) : (
+              <button
+                onClick={handleDeleteClick}
+                className="w-7 h-7 rounded-full bg-wa-sidebar shadow border border-wa-border flex items-center justify-center hover:bg-red-50 hover:border-red-200 transition"
+                title="מחק הודעה"
+              >
+                <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 text-wa-textSecondary hover:text-red-500" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+                </svg>
+              </button>
+            )}
+          </div>
+        )}
         {showSender && isOutbound && message.sender_name && (
           <div className="text-xs text-wa-light font-medium mb-1">{message.sender_name}</div>
         )}

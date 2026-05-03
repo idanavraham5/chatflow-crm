@@ -70,6 +70,13 @@ export default function ChatWindow({ conversation, onConversationUpdate }) {
 
   useEffect(() => { fetchMessages(); }, [conversation?.id, conversation?._refresh, searchQuery]);
 
+  // Real-time message deletion: remove deleted message locally
+  useEffect(() => {
+    const del = conversation?._deletedMessage;
+    if (!del) return;
+    setMessages(prev => prev.filter(m => m.id !== del.message_id));
+  }, [conversation?._deletedMessage?.timestamp]);
+
   // Real-time status update: update message read_status locally without refetching
   useEffect(() => {
     const update = conversation?._statusUpdate;
@@ -123,10 +130,14 @@ export default function ChatWindow({ conversation, onConversationUpdate }) {
     setContextMenu(null);
   };
 
-  const handleDelete = async () => {
-    if (contextMenu?.message) {
-      await deleteMessage(conversation.id, contextMenu.message.id);
-      setMessages(prev => prev.filter(m => m.id !== contextMenu.message.id));
+  const handleDelete = async (message) => {
+    const msg = message || contextMenu?.message;
+    if (!msg) return;
+    try {
+      await deleteMessage(conversation.id, msg.id);
+      setMessages(prev => prev.filter(m => m.id !== msg.id));
+    } catch (e) {
+      console.error('Delete failed:', e);
     }
     setContextMenu(null);
   };
@@ -397,6 +408,7 @@ export default function ChatWindow({ conversation, onConversationUpdate }) {
               message={item.data}
               showSender={hasMultipleAgents}
               onContextMenu={handleContextMenu}
+              onDelete={handleDelete}
             />
           );
         })}

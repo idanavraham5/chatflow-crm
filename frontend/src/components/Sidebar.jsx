@@ -50,7 +50,7 @@ const icons = {
   ),
 };
 
-export default function Sidebar() {
+export default function Sidebar({ isMobile = false }) {
   const { user, setUser, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -76,8 +76,75 @@ export default function Sidebar() {
     ] : []),
   ];
 
+  // ── Mobile: bottom navigation bar ──
+  if (isMobile) {
+    return (
+      <div className="mobile-bottom-nav bg-wa-dark border-t border-white/10 flex items-center justify-around py-2 px-1 shrink-0 safe-bottom">
+        {navItems.map(item => {
+          const isActive = currentPath === item.path;
+          return (
+            <button
+              key={item.path}
+              onClick={() => navigate(item.path)}
+              className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg transition
+                ${isActive ? 'text-white' : 'text-white/50'}`}
+            >
+              {item.icon}
+              <span className="text-[10px]">{item.label}</span>
+            </button>
+          );
+        })}
+        {/* User avatar */}
+        <button
+          onClick={() => setShowStatus(!showStatus)}
+          className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-white/50 relative"
+        >
+          <div className="w-6 h-6 rounded-full bg-white/15 flex items-center justify-center text-[10px] font-semibold text-white relative">
+            {user?.name?.charAt(0)}
+            <div
+              className="absolute -bottom-0.5 -left-0.5 w-2.5 h-2.5 rounded-full border-2 border-wa-dark"
+              style={{ backgroundColor: statusColors[user?.status] || '#8696A0' }}
+            />
+          </div>
+          <span className="text-[10px]">{statusLabels[user?.status]}</span>
+        </button>
+
+        {/* Status dropdown (mobile) */}
+        {showStatus && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setShowStatus(false)} />
+            <div className="absolute bottom-16 left-4 bg-white rounded-xl shadow-lg border border-gray-200 py-1.5 min-w-[160px] z-50">
+              <div className="px-4 py-2.5 text-sm font-semibold border-b border-gray-100 text-gray-800">{user?.name}</div>
+              {Object.entries(statusLabels).map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => changeStatus(key)}
+                  className={`w-full px-4 py-2.5 text-sm flex items-center gap-3 hover:bg-gray-50 transition
+                    ${user?.status === key ? 'text-wa-dark font-medium' : 'text-gray-600'}`}
+                >
+                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: statusColors[key] }} />
+                  {label}
+                </button>
+              ))}
+              <div className="border-t border-gray-100 mt-1 pt-1">
+                <button
+                  onClick={logout}
+                  className="w-full px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 text-right flex items-center gap-2 transition"
+                >
+                  {icons.logout}
+                  <span>התנתק</span>
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  // ── Desktop: vertical sidebar ──
   return (
-    <div className="w-[64px] bg-wa-dark flex flex-col items-center py-4 h-full" style={{ borderLeft: '1px solid rgba(255,255,255,0.1)' }}>
+    <div className="w-[64px] bg-wa-dark flex flex-col items-center py-4 h-full shrink-0" style={{ borderLeft: '1px solid rgba(255,255,255,0.1)' }}>
       {/* Logo */}
       <div
         className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center mb-8 cursor-pointer hover:bg-white/25 transition"

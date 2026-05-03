@@ -46,7 +46,7 @@ export default function MessageBubble({ message, showSender, onContextMenu, onDe
 
   if (isNote) {
     return (
-      <div className={`flex ${isOutbound ? 'justify-start' : 'justify-end'} mb-1 px-16`}>
+      <div className={`flex ${isOutbound ? 'justify-start' : 'justify-end'} mb-1 px-3 md:px-16`}>
         <div
           className="max-w-[65%] rounded-lg px-3 py-2 bg-wa-note border border-yellow-500/30"
           onContextMenu={handleContextMenu}
@@ -68,9 +68,9 @@ export default function MessageBubble({ message, showSender, onContextMenu, onDe
   }
 
   return (
-    <div className={`flex ${isOutbound ? 'justify-start' : 'justify-end'} mb-1 px-16 group`}>
+    <div className={`flex ${isOutbound ? 'justify-start' : 'justify-end'} mb-1 px-3 md:px-16 group`}>
       <div
-        className={`max-w-[65%] rounded-lg px-3 py-2 relative
+        className={`max-w-[85%] md:max-w-[65%] rounded-lg px-3 py-2 relative
           ${isOutbound ? 'bg-wa-bubble-out' : 'bg-wa-bubble-in'}`}
         onContextMenu={handleContextMenu}
       >

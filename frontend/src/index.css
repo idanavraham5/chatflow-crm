@@ -120,14 +120,43 @@ body {
   align-items: center;
   justify-content: center;
   z-index: 100;
+  padding: 16px;
 }
 .modal-content {
   background: #FFFFFF;
   border-radius: 12px;
   padding: 24px;
-  min-width: 400px;
+  min-width: 0;
+  width: 100%;
   max-width: 600px;
   max-height: 80vh;
   overflow-y: auto;
   box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+}
+
+/* Mobile bottom navigation */
+.mobile-bottom-nav {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  body {
+    overflow: auto;
+  }
+  .mobile-bottom-nav {
+    display: flex;
+  }
+  /* Hide scrollbar on mobile for cleaner look */
+  ::-webkit-scrollbar {
+    width: 0px;
+  }
+  /* Prevent iOS zoom on input focus */
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+}
+
+/* Safe area for notched phones (iPhone X+) */
+.safe-bottom {
+  padding-bottom: max(8px, env(safe-area-inset-bottom));
 }

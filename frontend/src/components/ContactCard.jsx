@@ -10,7 +10,7 @@ const priorityOptions = [
   { value: 'urgent', label: 'דחוף', icon: '🔴' },
 ];
 
-export default function ContactCard({ conversation, onConversationUpdate }) {
+export default function ContactCard({ conversation, onConversationUpdate, onClose, isMobile = false }) {
   const [contact, setContact] = useState(conversation?.contact);
   const [notes, setNotes] = useState(contact?.notes || '');
   const [category, setCategory] = useState(contact?.category || 'service');
@@ -149,9 +149,17 @@ export default function ContactCard({ conversation, onConversationUpdate }) {
   if (!contact) return null;
 
   return (
-    <div className="w-[300px] bg-wa-sidebar border-r border-wa-border flex flex-col h-full shrink-0">
+    <div className={`${isMobile ? 'w-full' : 'w-[300px]'} bg-wa-sidebar border-r border-wa-border flex flex-col h-full shrink-0`}>
       {/* Header */}
-      <div className="h-16 flex items-center px-4 border-b border-wa-border">
+      <div className="h-14 md:h-16 flex items-center px-4 border-b border-wa-border gap-3">
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="w-9 h-9 rounded-lg flex items-center justify-center text-wa-textSecondary hover:bg-wa-hover shrink-0"
+          >
+            <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+        )}
         <h3 className="font-semibold">פרטי לקוח</h3>
       </div>
 

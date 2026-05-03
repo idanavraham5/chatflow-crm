@@ -30,7 +30,7 @@ export default function Login({ onLogin }) {
 
   return (
     <div className="h-screen flex items-center justify-center bg-wa-bg font-rubik">
-      <div className="bg-wa-sidebar rounded-2xl p-10 w-[420px] shadow-2xl">
+      <div className="bg-wa-sidebar rounded-2xl p-6 md:p-10 w-full max-w-[420px] mx-4 shadow-2xl">
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-wa-dark flex items-center justify-center">

@@ -92,12 +92,12 @@ export default function Agents() {
   };
 
   return (
-    <div className="h-screen flex font-rubik" dir="rtl">
-      <Sidebar />
-      <div className="flex-1 overflow-y-auto bg-wa-bg p-6">
-        <div className="flex items-center justify-between mb-6">
+    <div className="h-screen flex flex-col md:flex-row font-rubik" dir="rtl">
+      <div className="hidden md:block"><Sidebar /></div>
+      <div className="flex-1 overflow-y-auto bg-wa-bg p-4 md:p-6 pb-20 md:pb-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 md:mb-6 gap-3">
           <div>
-            <h1 className="text-2xl font-bold">👥 ניהול נציגים</h1>
+            <h1 className="text-xl md:text-2xl font-bold">👥 ניהול נציגים</h1>
             <p className="text-wa-textSecondary text-sm mt-1">הוספה, השעיה ואיפוס סיסמאות</p>
           </div>
           <button
@@ -328,6 +328,7 @@ export default function Agents() {
           </div>
         )}
       </div>
+      <div className="md:hidden"><Sidebar isMobile={true} /></div>
     </div>
   );
 }

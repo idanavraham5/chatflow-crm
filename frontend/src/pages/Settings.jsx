@@ -146,21 +146,22 @@ export default function Settings() {
 
   if (loading) {
     return (
-      <div className="h-screen flex font-rubik" dir="rtl">
-        <Sidebar />
+      <div className="h-screen flex flex-col md:flex-row font-rubik" dir="rtl">
+        <div className="hidden md:block"><Sidebar /></div>
         <div className="flex-1 flex items-center justify-center bg-wa-bg">
           <div className="text-wa-textSecondary text-lg">טוען הגדרות...</div>
         </div>
+        <div className="md:hidden"><Sidebar isMobile={true} /></div>
       </div>
     );
   }
 
   return (
-    <div className="h-screen flex font-rubik" dir="rtl">
-      <Sidebar />
+    <div className="h-screen flex flex-col md:flex-row font-rubik" dir="rtl">
+      <div className="hidden md:block"><Sidebar /></div>
 
       {/* Side navigation */}
-      <div className="w-[200px] bg-wa-sidebar border-l border-wa-border flex flex-col py-6 shrink-0">
+      <div className="hidden md:flex w-[200px] bg-wa-sidebar border-l border-wa-border flex-col py-6 shrink-0">
         <h2 className="text-lg font-bold px-5 mb-5">הגדרות</h2>
         <nav className="flex flex-col gap-1 px-3">
           {sections.map(s => (
@@ -181,7 +182,7 @@ export default function Settings() {
       </div>
 
       {/* Main content — scrollable */}
-      <div className="flex-1 overflow-y-auto bg-wa-bg p-8">
+      <div className="flex-1 overflow-y-auto bg-wa-bg p-4 md:p-8 pb-20 md:pb-8">
         <div className="max-w-4xl mx-auto space-y-10">
 
           {/* ═══════════════════ GENERAL ═══════════════════ */}
@@ -489,7 +490,7 @@ export default function Settings() {
       {/* Template form modal */}
       {showTplForm && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setShowTplForm(false)}>
-          <div className="bg-wa-sidebar rounded-2xl w-[520px] max-h-[80vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
+          <div className="bg-wa-sidebar rounded-2xl w-full max-w-[520px] mx-4 max-h-[80vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-wa-border">
               <h2 className="font-bold text-lg">{tplEditing ? '✏️ עריכת טמפלייט' : '⚡ טמפלייט חדש'}</h2>
               <button onClick={() => setShowTplForm(false)} className="text-wa-textSecondary hover:text-wa-text text-lg">✕</button>
@@ -603,7 +604,7 @@ export default function Settings() {
       {/* Reset password modal */}
       {resetId && (
         <div className="modal-overlay" onClick={() => setResetId(null)}>
-          <div className="modal-content !min-w-[350px]" onClick={e => e.stopPropagation()}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-semibold mb-4">🔑 איפוס סיסמה</h3>
             <div>
               <label className="block text-wa-textSecondary text-xs mb-1.5">סיסמה חדשה</label>
@@ -616,6 +617,8 @@ export default function Settings() {
           </div>
         </div>
       )}
+
+      <div className="md:hidden"><Sidebar isMobile={true} /></div>
     </div>
   );
 }

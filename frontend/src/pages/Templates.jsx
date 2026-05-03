@@ -68,14 +68,14 @@ export default function Templates() {
   );
 
   return (
-    <div className="h-screen flex font-rubik" dir="rtl">
-      <Sidebar />
-      <div className="flex-1 overflow-y-auto bg-wa-bg p-6">
+    <div className="h-screen flex flex-col md:flex-row font-rubik" dir="rtl">
+      <div className="hidden md:block"><Sidebar /></div>
+      <div className="flex-1 overflow-y-auto bg-wa-bg p-4 md:p-6 pb-20 md:pb-6">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 md:mb-6 gap-3">
           <div>
-            <h1 className="text-2xl font-bold">⚡ טמפלייטים</h1>
-            <p className="text-wa-textSecondary text-sm mt-1">ניהול תבניות הודעות מוכנות לשליחה</p>
+            <h1 className="text-xl md:text-2xl font-bold">⚡ טמפלייטים</h1>
+            <p className="text-wa-textSecondary text-xs md:text-sm mt-1">ניהול תבניות הודעות מוכנות לשליחה</p>
           </div>
           {isAdmin && (
             <button
@@ -154,7 +154,7 @@ export default function Templates() {
         {/* Add/Edit Modal */}
         {showForm && (
           <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setShowForm(false)}>
-            <div className="bg-wa-sidebar rounded-2xl w-[520px] max-h-[80vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="bg-wa-sidebar rounded-2xl w-full max-w-[520px] mx-4 max-h-[80vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
               <div className="flex items-center justify-between px-6 py-4 border-b border-wa-border">
                 <h2 className="font-bold text-lg">{editing ? '✏️ עריכת טמפלייט' : '⚡ טמפלייט חדש'}</h2>
                 <button onClick={() => setShowForm(false)} className="text-wa-textSecondary hover:text-wa-text text-lg">✕</button>
@@ -217,6 +217,7 @@ export default function Templates() {
           </div>
         )}
       </div>
+      <div className="md:hidden"><Sidebar isMobile={true} /></div>
     </div>
   );
 }

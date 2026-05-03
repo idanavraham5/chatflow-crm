@@ -32,7 +32,7 @@ function groupMessagesByDate(messages) {
   return groups;
 }
 
-export default function ChatWindow({ conversation, onConversationUpdate }) {
+export default function ChatWindow({ conversation, onConversationUpdate, onBack, onShowContact, isMobile = false }) {
   const { user } = useAuth();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -305,10 +305,10 @@ export default function ChatWindow({ conversation, onConversationUpdate }) {
 
   if (!conversation) {
     return (
-      <div className="flex-1 flex items-center justify-center wa-chat-bg">
-        <div className="text-center">
-          <div className="text-6xl mb-4">💬</div>
-          <h2 className="text-xl text-wa-textSecondary">בחר שיחה להתחלת צ'אט</h2>
+      <div className="flex-1 flex items-center justify-center wa-chat-bg h-full">
+        <div className="text-center px-6">
+          <div className="text-5xl md:text-6xl mb-4">💬</div>
+          <h2 className="text-lg md:text-xl text-wa-textSecondary">בחר שיחה להתחלת צ'אט</h2>
         </div>
       </div>
     );
@@ -321,34 +321,48 @@ export default function ChatWindow({ conversation, onConversationUpdate }) {
   return (
     <div className="flex-1 flex flex-col bg-wa-chat h-full relative">
       {/* Header */}
-      <div className="h-16 bg-wa-header flex items-center justify-between px-4 border-b border-wa-border shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-wa-input flex items-center justify-center font-medium">
-            {conversation.contact?.name?.charAt(0)}
-          </div>
-          <div>
-            <div className="font-medium text-wa-text">{conversation.contact?.name}</div>
-            <div className="flex items-center gap-2 text-xs text-wa-textSecondary">
-              <span className="px-2 py-0.5 rounded bg-wa-input">{categoryLabels[conversation.category]}</span>
-              <span className="px-2 py-0.5 rounded bg-wa-input">{statusLabels[conversation.status]}</span>
-              {conversation.phone_number_id && (
-                <span className="px-2 py-0.5 rounded bg-green-900/30 text-green-400">📱 WhatsApp</span>
-              )}
+      <div className="h-14 md:h-16 bg-wa-header flex items-center justify-between px-3 md:px-4 border-b border-wa-border shrink-0">
+        <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
+          {/* Back button — mobile only */}
+          {onBack && (
+            <button
+              onClick={onBack}
+              className="w-9 h-9 rounded-lg flex items-center justify-center text-wa-textSecondary hover:bg-wa-hover shrink-0"
+            >
+              <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+          )}
+          <div
+            className="flex items-center gap-2 md:gap-3 min-w-0 flex-1 cursor-pointer"
+            onClick={() => onShowContact?.()}
+          >
+            <div className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-wa-input flex items-center justify-center font-medium shrink-0 text-sm md:text-base">
+              {conversation.contact?.name?.charAt(0)}
+            </div>
+            <div className="min-w-0">
+              <div className="font-medium text-wa-text text-sm md:text-base truncate">{conversation.contact?.name}</div>
+              <div className="flex items-center gap-1.5 md:gap-2 text-[10px] md:text-xs text-wa-textSecondary">
+                <span className="px-1.5 py-0.5 rounded bg-wa-input">{categoryLabels[conversation.category]}</span>
+                <span className="px-1.5 py-0.5 rounded bg-wa-input">{statusLabels[conversation.status]}</span>
+                {conversation.phone_number_id && !isMobile && (
+                  <span className="px-2 py-0.5 rounded bg-green-900/30 text-green-400">📱 WhatsApp</span>
+                )}
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
           {conversation.status !== 'closed' && (
             <button
               onClick={() => onConversationUpdate?.({ status: 'closed', is_new: false })}
-              className="bg-green-600 hover:bg-green-700 text-white text-sm font-medium px-4 py-1.5 rounded-lg transition flex items-center gap-1.5"
+              className="bg-green-600 hover:bg-green-700 text-white text-xs md:text-sm font-medium px-2.5 md:px-4 py-1.5 rounded-lg transition flex items-center gap-1"
               title="סמן שיחה כטופלה"
             >
               <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="20 6 9 17 4 12"/>
               </svg>
-              <span>טופל</span>
+              <span className="hidden md:inline">טופל</span>
             </button>
           )}
           <button
@@ -393,7 +407,7 @@ export default function ChatWindow({ conversation, onConversationUpdate }) {
       )}
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto py-4 wa-chat-bg">
+      <div className="flex-1 overflow-y-auto py-3 md:py-4 wa-chat-bg">
         {grouped.map((item, i) => {
           if (item.type === 'date') {
             return (
@@ -496,7 +510,7 @@ export default function ChatWindow({ conversation, onConversationUpdate }) {
 
       {/* WhatsApp Template picker */}
       {showWaTemplates && (
-        <div className="absolute bottom-20 right-4 bg-wa-sidebar rounded-xl shadow-xl border border-wa-border p-4 w-80 z-50">
+        <div className="absolute bottom-20 right-2 md:right-4 bg-wa-sidebar rounded-xl shadow-xl border border-wa-border p-4 w-[calc(100%-16px)] md:w-80 z-50">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold text-sm">📨 שליחת הודעה יזומית</h3>
             <button onClick={() => setShowWaTemplates(false)} className="text-wa-textSecondary hover:text-wa-text">✕</button>

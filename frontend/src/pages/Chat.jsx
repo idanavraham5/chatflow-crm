@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
 import ConversationList from '../components/ConversationList';
@@ -8,11 +8,26 @@ import useWebSocket from '../hooks/useWebSocket';
 import useNotifications from '../hooks/useNotifications';
 import { updateConversation } from '../api';
 
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
+  return isMobile;
+}
+
 export default function Chat() {
   const { user } = useAuth();
   const [selectedConv, setSelectedConv] = useState(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [showContactCard, setShowContactCard] = useState(false);
   const { showNotification } = useNotifications();
+  const isMobile = useIsMobile();
+
+  // Mobile view: 'list' | 'chat' | 'contact'
+  const [mobileView, setMobileView] = useState('list');
 
   const handleWsMessage = useCallback((data) => {
     if (data.type === 'new_message') {
@@ -31,7 +46,6 @@ export default function Chat() {
     }
 
     if (data.type === 'message_status') {
-      // Real-time read status update (sent → delivered → read)
       if (data.conversation_id === selectedConv?.id) {
         setSelectedConv(prev => ({
           ...prev,
@@ -68,7 +82,8 @@ export default function Chat() {
 
   const handleSelectConversation = async (conv) => {
     setSelectedConv(conv);
-    // Mark as not new when opened
+    setShowContactCard(false);
+    if (isMobile) setMobileView('chat');
     if (conv && conv.is_new) {
       try {
         await updateConversation(conv.id, { is_new: false });
@@ -86,24 +101,90 @@ export default function Chat() {
     } catch (e) {}
   };
 
-  return (
-    <div className="h-screen flex font-rubik" dir="rtl">
-      <Sidebar />
-      <ConversationList
-        selectedId={selectedConv?.id}
-        onSelect={handleSelectConversation}
-        refreshTrigger={refreshTrigger}
-      />
-      <ChatWindow
-        conversation={selectedConv}
-        onConversationUpdate={handleConversationUpdate}
-      />
-      {selectedConv && (
-        <ContactCard
+  const handleBack = () => {
+    if (mobileView === 'contact') {
+      setMobileView('chat');
+      setShowContactCard(false);
+    } else {
+      setMobileView('list');
+      setSelectedConv(null);
+    }
+  };
+
+  const handleShowContact = () => {
+    if (isMobile) {
+      setMobileView('contact');
+    }
+    setShowContactCard(prev => !prev);
+  };
+
+  // ── Desktop layout ──
+  if (!isMobile) {
+    return (
+      <div className="h-screen flex font-rubik" dir="rtl">
+        <Sidebar />
+        <ConversationList
+          selectedId={selectedConv?.id}
+          onSelect={handleSelectConversation}
+          refreshTrigger={refreshTrigger}
+        />
+        <ChatWindow
           conversation={selectedConv}
           onConversationUpdate={handleConversationUpdate}
+          onShowContact={handleShowContact}
         />
-      )}
+        {selectedConv && showContactCard && (
+          <ContactCard
+            conversation={selectedConv}
+            onConversationUpdate={handleConversationUpdate}
+            onClose={() => setShowContactCard(false)}
+          />
+        )}
+      </div>
+    );
+  }
+
+  // ── Mobile layout ──
+  return (
+    <div className="h-screen flex flex-col font-rubik" dir="rtl">
+      {/* Mobile views */}
+      <div className="flex-1 overflow-hidden relative">
+        {/* Conversation List */}
+        <div className={`absolute inset-0 transition-transform duration-200 ${mobileView === 'list' ? 'translate-x-0' : 'translate-x-full'}`}>
+          <ConversationList
+            selectedId={selectedConv?.id}
+            onSelect={handleSelectConversation}
+            refreshTrigger={refreshTrigger}
+            isMobile={true}
+          />
+        </div>
+
+        {/* Chat Window */}
+        <div className={`absolute inset-0 transition-transform duration-200 ${mobileView === 'chat' ? 'translate-x-0' : mobileView === 'contact' ? 'translate-x-full' : '-translate-x-full'}`}>
+          <ChatWindow
+            conversation={selectedConv}
+            onConversationUpdate={handleConversationUpdate}
+            onBack={handleBack}
+            onShowContact={handleShowContact}
+            isMobile={true}
+          />
+        </div>
+
+        {/* Contact Card */}
+        <div className={`absolute inset-0 transition-transform duration-200 ${mobileView === 'contact' ? 'translate-x-0' : '-translate-x-full'}`}>
+          {selectedConv && (
+            <ContactCard
+              conversation={selectedConv}
+              onConversationUpdate={handleConversationUpdate}
+              onClose={handleBack}
+              isMobile={true}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* Mobile bottom navigation */}
+      <Sidebar isMobile={true} />
     </div>
   );
 }

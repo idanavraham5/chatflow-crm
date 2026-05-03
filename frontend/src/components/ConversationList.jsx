@@ -26,7 +26,7 @@ function formatTime(dateStr) {
   return d.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' });
 }
 
-export default function ConversationList({ selectedId, onSelect, refreshTrigger }) {
+export default function ConversationList({ selectedId, onSelect, refreshTrigger, isMobile = false }) {
   const [conversations, setConversations] = useState([]);
   const [counts, setCounts] = useState({ mine: 0, unassigned: 0, all: 0, new: 0 });
   const [search, setSearch] = useState('');
@@ -121,7 +121,7 @@ export default function ConversationList({ selectedId, onSelect, refreshTrigger 
   const getLabelById = (id) => labels.find(l => l.id === id);
 
   return (
-    <div className="w-[380px] bg-wa-sidebar border-l border-wa-border flex flex-col h-full">
+    <div className={`${isMobile ? 'w-full' : 'w-[380px]'} bg-wa-sidebar border-l border-wa-border flex flex-col h-full`}>
       {/* Header */}
       <div className="p-4 pb-2 border-b border-wa-border">
         <div className="flex items-center justify-between mb-3">

@@ -60,21 +60,21 @@ export default function Dashboard() {
   const formatDate = (v) => new Date(v).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' });
 
   return (
-    <div className="h-screen flex font-rubik" dir="rtl">
-      <Sidebar />
-      <div className="flex-1 overflow-y-auto bg-wa-bg p-6">
+    <div className="h-screen flex flex-col md:flex-row font-rubik" dir="rtl">
+      <div className="hidden md:block"><Sidebar /></div>
+      <div className="flex-1 overflow-y-auto bg-wa-bg p-3 md:p-6 pb-20 md:pb-6">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 md:mb-6 gap-3">
           <div>
-            <h1 className="text-2xl font-bold">📊 דשבורד</h1>
-            <p className="text-wa-textSecondary text-sm mt-1">סקירת ביצועים כללית</p>
+            <h1 className="text-xl md:text-2xl font-bold">📊 דשבורד</h1>
+            <p className="text-wa-textSecondary text-xs md:text-sm mt-1">סקירת ביצועים כללית</p>
           </div>
           <div className="flex gap-2">
             {[7, 30, 90].map(d => (
               <button
                 key={d}
                 onClick={() => setDays(d)}
-                className={`px-4 py-2 rounded-lg text-sm transition
+                className={`px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-xs md:text-sm transition
                   ${days === d ? 'bg-wa-dark text-white' : 'bg-wa-sidebar text-wa-textSecondary hover:bg-wa-hover'}`}
               >
                 {d === 7 ? '7 ימים' : d === 30 ? 'חודש' : '3 חודשים'}
@@ -88,7 +88,7 @@ export default function Dashboard() {
         ) : data && (
           <>
             {/* Row 1: Main stat cards */}
-            <div className="grid grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-4 md:mb-6">
               <StatCard icon="💬" label="שיחות פתוחות" value={data.stats.open_conversations} color="#25D366" />
               <StatCard icon="⏳" label="בטיפול" value={data.stats.in_progress_conversations} color="#F59E0B" />
               <StatCard icon="✅" label="נסגרו היום" value={data.stats.closed_today} color="#3B82F6" />
@@ -96,7 +96,7 @@ export default function Dashboard() {
             </div>
 
             {/* Row 2: Messages & unanswered */}
-            <div className="grid grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-4 md:mb-6">
               <StatCard icon="📤" label="הודעות שנשלחו היום" value={data.stats.messages_sent_today} color="#128C7E" />
               <StatCard icon="📥" label="הודעות שהתקבלו היום" value={data.stats.messages_received_today} color="#3B82F6" />
               <StatCard icon="🔴" label="ממתינות למענה" value={data.stats.unanswered_conversations} color="#EF4444"
@@ -105,8 +105,8 @@ export default function Dashboard() {
             </div>
 
             {/* Row 3: Messages by day + Pie */}
-            <div className="grid grid-cols-3 gap-4 mb-6">
-              <ChartCard title="📨 הודעות לפי יום" className="col-span-2">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mb-4 md:mb-6">
+              <ChartCard title="📨 הודעות לפי יום" className="md:col-span-2">
                 <ResponsiveContainer width="100%" height={260}>
                   <LineChart data={data.messages_by_day}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
@@ -221,6 +221,8 @@ export default function Dashboard() {
           </>
         )}
       </div>
+      {/* Mobile bottom nav */}
+      <div className="md:hidden"><Sidebar isMobile={true} /></div>
     </div>
   );
 }

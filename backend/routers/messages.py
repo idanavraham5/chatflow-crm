@@ -206,6 +206,16 @@ async def send_wa_template(
     }
     template_text = template_displays.get(template_name, f"תבנית: {template_name}")
 
+    # Template language mapping (most are Hebrew, some are English)
+    template_languages = {
+        "welcome__message": "he",
+        "welcome_soker": "he",
+        "welcome_textech": "he",
+        "no_answer": "he",
+        "free": "he",
+    }
+    template_lang = template_languages.get(template_name, "he")
+
     # Build template components with all variables
     components = []
     if all_vars:
@@ -216,14 +226,14 @@ async def send_wa_template(
         from whatsapp import get_default_phone_id
         # Always use current default phone_id (conversations may have old IDs)
         phone_id = get_default_phone_id()
-        print(f"📨 Sending template '{template_name}' to {contact.phone} via phone_id={phone_id}")
+        print(f"📨 Sending template '{template_name}' to {contact.phone} via phone_id={phone_id}, lang={template_lang}")
         print(f"📨 Variables: {all_vars}")
         print(f"📨 Components: {components}")
 
         result = await send_template_message(
             phone=contact.phone,
             template_name=template_name,
-            language="he",
+            language=template_lang,
             components=components,
             phone_number_id=phone_id
         )

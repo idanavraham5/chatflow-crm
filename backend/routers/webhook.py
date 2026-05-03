@@ -236,7 +236,7 @@ async def _handle_incoming_message(event: dict, db: Session):
         }
     }
 
-    # Notify conversation owner + shared agents + all admins
+    # Notify conversation owner + shared agents + admins only
     notify_users = set()
     if conv.owner_id:
         notify_users.add(conv.owner_id)
@@ -248,7 +248,8 @@ async def _handle_incoming_message(event: dict, db: Session):
     for a in admins:
         notify_users.add(a.id)
 
-    await manager.send_to_users(list(notify_users), notify_data)
+    if notify_users:
+        await manager.send_to_users(list(notify_users), notify_data)
 
     print(f"📩 Incoming message from {display_phone}: {msg_data['content'][:50]}")
 

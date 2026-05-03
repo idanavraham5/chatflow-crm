@@ -298,6 +298,10 @@ class DashboardStats(BaseModel):
     in_progress_conversations: int
     closed_today: int
     avg_response_time: float
+    messages_sent_today: int
+    messages_received_today: int
+    unanswered_conversations: int
+    total_conversations: int
 
 
 class AgentStats(BaseModel):
@@ -307,11 +311,15 @@ class AgentStats(BaseModel):
     open_count: int
     closed_today: int
     avg_response_time: float
+    messages_sent: int
+    messages_sent_today: int
 
 
 class DashboardResponse(BaseModel):
     stats: DashboardStats
     agents: List[AgentStats]
     conversations_by_day: List[dict]
+    messages_by_day: List[dict]
     conversations_by_category: dict
     conversations_by_hour: List[dict]
+    messages_by_hour: List[dict]

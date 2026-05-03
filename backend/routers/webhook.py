@@ -264,6 +264,16 @@ async def _handle_status_update(event: dict, db: Session):
     if not wa_message_id or not status:
         return
 
+    # Handle errors FIRST (before early return for unknown statuses)
+    if event.get("errors"):
+        error_details = event["errors"]
+        for err in error_details:
+            print(f"⚠️ WhatsApp delivery error for {wa_message_id}: code={err.get('code')}, title={err.get('title')}, message={err.get('message')}, error_data={err.get('error_data')}")
+
+    if status == "failed":
+        print(f"❌ Message FAILED: wa_id={wa_message_id}, errors={event.get('errors')}")
+        return
+
     # Map WhatsApp status to our ReadStatus
     status_map = {
         "sent": ReadStatus.sent,
@@ -296,11 +306,6 @@ async def _handle_status_update(event: dict, db: Session):
             "wa_message_id": wa_message_id,
             "status": status
         })
-
-    # Handle errors
-    if event.get("errors"):
-        error_msg = event["errors"][0].get("title", "Unknown error")
-        print(f"⚠️ WhatsApp delivery error for {wa_message_id}: {error_msg}")
 
 
 # ─── Media Proxy (download customer-sent files) ───────────────

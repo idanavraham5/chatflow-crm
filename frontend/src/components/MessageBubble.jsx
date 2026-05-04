@@ -22,6 +22,45 @@ function resolveMediaUrl(url) {
   return url;
 }
 
+// Detect URLs in text and render as clickable links
+function Linkify({ children }) {
+  if (typeof children !== 'string') return children;
+  const urlPattern = /(https?:\/\/[^\s<]+|www\.[^\s<]+)/gi;
+  const parts = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = urlPattern.exec(children)) !== null) {
+    // Add text before the URL
+    if (match.index > lastIndex) {
+      parts.push(children.slice(lastIndex, match.index));
+    }
+    // Add the URL as a link
+    const url = match[0];
+    const href = url.startsWith('www.') ? `https://${url}` : url;
+    parts.push(
+      <a
+        key={match.index}
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-blue-600 underline hover:text-blue-800 break-all"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {url}
+      </a>
+    );
+    lastIndex = match.index + url.length;
+  }
+
+  // Add remaining text
+  if (lastIndex < children.length) {
+    parts.push(children.slice(lastIndex));
+  }
+
+  return parts.length > 0 ? <>{parts}</> : children;
+}
+
 export default function MessageBubble({ message, showSender, onContextMenu, onDelete }) {
   const isOutbound = message.direction === 'outbound';
   const isNote = message.is_internal_note;
@@ -58,7 +97,7 @@ export default function MessageBubble({ message, showSender, onContextMenu, onDe
               <span className="text-xs text-yellow-600 mr-1">• {message.sender_name}</span>
             )}
           </div>
-          <p className="text-sm text-yellow-900 whitespace-pre-wrap">{message.content}</p>
+          <p className="text-sm text-yellow-900 whitespace-pre-wrap"><Linkify>{message.content}</Linkify></p>
           <div className="flex items-center justify-end gap-1 mt-1">
             <span className="text-[10px] text-yellow-600">{formatTime(message.created_at)}</span>
           </div>
@@ -164,7 +203,7 @@ export default function MessageBubble({ message, showSender, onContextMenu, onDe
 
             return (
               <div>
-                <p className="text-sm text-wa-text whitespace-pre-wrap leading-relaxed">{bodyLines.join('\n').trim()}</p>
+                <p className="text-sm text-wa-text whitespace-pre-wrap leading-relaxed"><Linkify>{bodyLines.join('\n').trim()}</Linkify></p>
                 {footerLines.length > 0 && (
                   <p className="text-[11px] text-wa-textSecondary mt-2 pt-2 border-t border-black/10">{footerLines.join('\n')}</p>
                 )}
@@ -181,7 +220,7 @@ export default function MessageBubble({ message, showSender, onContextMenu, onDe
             );
           }
 
-          return <p className="text-sm text-wa-text whitespace-pre-wrap leading-relaxed">{content}</p>;
+          return <p className="text-sm text-wa-text whitespace-pre-wrap leading-relaxed"><Linkify>{content}</Linkify></p>;
         })()}
 
         <div className="flex items-center justify-end gap-1 mt-1">

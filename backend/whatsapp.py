@@ -454,6 +454,9 @@ def extract_message_content(message: dict) -> dict:
         btn = message.get("button", {})
         result["content"] = btn.get("text", "לחיצת כפתור")
 
+    elif msg_type == "unsupported":
+        result["content"] = "📎 הודעה שלא ניתנת לצפייה (כנראה הודעת 'צפה פעם אחת')"
+
     else:
         result["content"] = f"📎 הודעה ({msg_type})"
 

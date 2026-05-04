@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { getConversations, getConversationCounts, getContacts, createConversation, getLabels } from '../api';
+import { getConversations, getConversationCounts, getContacts, createConversation, getLabels, getAgents } from '../api';
+import { useAuth } from '../context/AuthContext';
 
 const statusColors = {
   open: '#25D366', in_progress: '#F59E0B', waiting: '#3B82F6', closed: '#6B7280'
@@ -27,6 +28,7 @@ function formatTime(dateStr) {
 }
 
 export default function ConversationList({ selectedId, onSelect, refreshTrigger, isMobile = false }) {
+  const { user } = useAuth();
   const [conversations, setConversations] = useState([]);
   const [counts, setCounts] = useState({ mine: 0, unassigned: 0, all: 0, new: 0 });
   const [search, setSearch] = useState('');
@@ -34,7 +36,9 @@ export default function ConversationList({ selectedId, onSelect, refreshTrigger,
   const [statusFilter, setStatusFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [labelFilter, setLabelFilter] = useState('');
+  const [agentFilter, setAgentFilter] = useState('');
   const [labels, setLabels] = useState([]);
+  const [agents, setAgents] = useState([]);
   const [showNewChat, setShowNewChat] = useState(false);
   const [contacts, setContacts] = useState([]);
   const [newPhone, setNewPhone] = useState('');
@@ -55,22 +59,35 @@ export default function ConversationList({ selectedId, onSelect, refreshTrigger,
     } catch (e) {}
   };
 
+  const fetchAgents = async () => {
+    try {
+      const data = await getAgents();
+      setAgents(data);
+    } catch (e) {}
+  };
+
   const fetchConversations = async () => {
     try {
       const data = await getConversations({
         search,
-        tab: activeTab,
+        tab: agentFilter ? 'all' : activeTab,  // When filtering by agent, fetch all
         status: statusFilter,
         category: categoryFilter,
         label_id: labelFilter || undefined,
         show_closed: statusFilter === 'closed'
       });
-      setConversations(data);
+      // Client-side agent filter
+      if (agentFilter) {
+        const agentId = parseInt(agentFilter);
+        setConversations(data.filter(c => c.owner_id === agentId));
+      } else {
+        setConversations(data);
+      }
     } catch (e) {}
   };
 
-  useEffect(() => { fetchLabels(); }, []);
-  useEffect(() => { fetchConversations(); fetchCounts(); }, [search, activeTab, statusFilter, categoryFilter, labelFilter, refreshTrigger]);
+  useEffect(() => { fetchLabels(); fetchAgents(); }, []);
+  useEffect(() => { fetchConversations(); fetchCounts(); }, [search, activeTab, statusFilter, categoryFilter, labelFilter, agentFilter, refreshTrigger]);
 
   const openNewChatModal = async () => {
     setShowNewChat(true);
@@ -193,6 +210,18 @@ export default function ConversationList({ selectedId, onSelect, refreshTrigger,
           <option value="service">שירות</option>
           <option value="sales">מכירות</option>
         </select>
+        {user?.role === 'admin' && agents.length > 0 && (
+          <select
+            value={agentFilter}
+            onChange={(e) => setAgentFilter(e.target.value)}
+            className={`text-xs rounded-lg px-2 py-1.5 outline-none cursor-pointer ${agentFilter ? 'bg-wa-dark text-white' : 'bg-wa-input text-wa-text'}`}
+          >
+            <option value="">נציג</option>
+            {agents.map(a => (
+              <option key={a.id} value={a.id}>{a.name}</option>
+            ))}
+          </select>
+        )}
         {labels.length > 0 && (
           <select
             value={labelFilter}
@@ -205,9 +234,9 @@ export default function ConversationList({ selectedId, onSelect, refreshTrigger,
             ))}
           </select>
         )}
-        {(statusFilter || categoryFilter || labelFilter) && (
+        {(statusFilter || categoryFilter || labelFilter || agentFilter) && (
           <button
-            onClick={() => { setStatusFilter(''); setCategoryFilter(''); setLabelFilter(''); }}
+            onClick={() => { setStatusFilter(''); setCategoryFilter(''); setLabelFilter(''); setAgentFilter(''); }}
             className="text-xs text-wa-light hover:underline"
           >
             נקה
@@ -258,6 +287,9 @@ export default function ConversationList({ selectedId, onSelect, refreshTrigger,
                     {formatTime(conv.last_message_at)}
                   </span>
                 </div>
+                {conv.owner_name && (
+                  <div className="text-[10px] text-wa-light truncate mb-0.5">👤 {conv.owner_name}</div>
+                )}
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-wa-textSecondary truncate flex-1">
                     {conv.last_message || 'אין הודעות'}

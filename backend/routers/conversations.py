@@ -5,7 +5,7 @@ from typing import Optional, List
 from datetime import datetime
 from database import get_db
 from models import User, Conversation, Message, Contact, ConversationStatus, CategoryType, PriorityLevel, UserRole
-from whatsapp import get_default_phone_id
+from whatsapp import get_default_phone_id, format_phone_display, normalize_phone
 from schemas import ConversationResponse, ConversationCreate, ConversationUpdate, TransferRequest, ShareRequest
 from auth import get_current_user, log_action, sanitize_search
 from websocket_manager import manager
@@ -102,8 +102,8 @@ def list_conversations(
 
     convs = query.order_by(Conversation.last_message_at.desc()).all()
 
-    # For non-admin users on "all" tab: show only their conversations + shared
-    if tab == "all" and current_user.role.value != "admin":
+    # Non-admin users: ALWAYS filter to only their own + shared conversations
+    if current_user.role.value != "admin" and tab not in ("unassigned",):
         convs = [c for c in convs if c.owner_id == current_user.id or current_user.id in (c.shared_with or [])]
 
     if label_id is not None:
@@ -155,12 +155,20 @@ def create_conversation_endpoint(
         if not contact:
             raise HTTPException(status_code=404, detail="Contact not found")
     elif phone:
-        # Find existing contact or create new one
-        contact = db.query(Contact).filter(Contact.phone == phone).first()
+        # Normalize phone to consistent display format (054-449-9787)
+        normalized = normalize_phone(phone)
+        display_phone = format_phone_display(normalized)
+        local_no_dash = ("0" + normalized[3:]) if normalized.startswith("972") else normalized
+
+        # Find existing contact by any phone format
+        contact = db.query(Contact).filter(
+            Contact.phone.in_([phone, display_phone, normalized, f"+{normalized}", local_no_dash])
+        ).first()
+
         if not contact:
             contact = Contact(
-                name=name or phone,
-                phone=phone,
+                name=name or display_phone,
+                phone=display_phone,  # Always store in consistent format
                 category=category
             )
             db.add(contact)

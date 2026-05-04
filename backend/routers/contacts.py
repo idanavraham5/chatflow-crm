@@ -6,6 +6,7 @@ from database import get_db
 from models import User, Contact
 from schemas import ContactCreate, ContactUpdate, ContactResponse
 from auth import get_current_user
+from whatsapp import normalize_phone, format_phone_display
 
 router = APIRouter(prefix="/api/contacts", tags=["contacts"])
 
@@ -40,10 +41,21 @@ def get_contact(contact_id: int, db: Session = Depends(get_db), current_user: Us
 
 @router.post("/", response_model=ContactResponse)
 def create_contact(data: ContactCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    existing = db.query(Contact).filter(Contact.phone == data.phone).first()
+    # Normalize phone to consistent display format
+    normalized = normalize_phone(data.phone)
+    display_phone = format_phone_display(normalized)
+    local_no_dash = ("0" + normalized[3:]) if normalized.startswith("972") else normalized
+
+    # Check for duplicates with all possible formats
+    existing = db.query(Contact).filter(
+        Contact.phone.in_([data.phone, display_phone, normalized, f"+{normalized}", local_no_dash])
+    ).first()
     if existing:
-        raise HTTPException(status_code=400, detail="Phone number already exists")
-    contact = Contact(**data.model_dump())
+        raise HTTPException(status_code=400, detail="מספר טלפון כבר קיים במערכת")
+
+    contact_data = data.model_dump()
+    contact_data["phone"] = display_phone  # Always store normalized
+    contact = Contact(**contact_data)
     db.add(contact)
     db.commit()
     db.refresh(contact)

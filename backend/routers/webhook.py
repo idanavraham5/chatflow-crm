@@ -101,14 +101,33 @@ async def _handle_incoming_message(event: dict, db: Session):
 
     # ── Find or create contact ──
     display_phone = format_phone_display(from_phone)
-    contact = db.query(Contact).filter(Contact.phone == display_phone).first()
+    normalized = normalize_phone(from_phone)
+    # Also build alternative formats for matching
+    local_no_dash = ("0" + normalized[3:]) if normalized.startswith("972") else normalized
+    local_with_dash = display_phone  # e.g. 054-449-9787
 
-    if not contact:
-        # Try normalized format too
-        normalized = normalize_phone(from_phone)
+    # Try all possible phone formats the contact might be stored as
+    print(f"🔍 Looking for contact: from={from_phone}, display={display_phone}, normalized={normalized}, local={local_no_dash}")
+    contact = db.query(Contact).filter(
+        Contact.phone.in_([
+            display_phone,           # 054-449-9787
+            normalized,              # 972544499787
+            f"+{normalized}",        # +972544499787
+            from_phone,              # raw from WhatsApp
+            local_no_dash,           # 0544499787
+        ])
+    ).first()
+
+    # Also try partial match — phone contains the local digits
+    if not contact and len(local_no_dash) >= 10:
         contact = db.query(Contact).filter(
-            Contact.phone.in_([from_phone, display_phone, normalized, f"+{normalized}"])
+            Contact.phone.contains(local_no_dash[-7:])  # Last 7 digits
         ).first()
+
+    if contact:
+        print(f"✅ Found existing contact: id={contact.id}, name={contact.name}, phone={contact.phone}")
+    else:
+        print(f"🆕 Creating new contact for {display_phone}")
 
     if not contact:
         contact = Contact(

@@ -222,17 +222,44 @@ async def send_wa_template(
         from whatsapp import get_default_phone_id
         # Always use current default phone_id (conversations may have old IDs)
         phone_id = get_default_phone_id()
-        print(f"📨 Sending template '{template_name}' to {contact.phone} via phone_id={phone_id}, lang={template_lang}")
-        print(f"📨 Variables: {all_vars}")
-        print(f"📨 Components: {components}")
 
-        result = await send_template_message(
-            phone=contact.phone,
-            template_name=template_name,
-            language=template_lang,
-            components=components,
-            phone_number_id=phone_id
-        )
+        # For "free" template — check if 24h window is open, send as regular text instead
+        if template_name == "free" and all_vars:
+            from datetime import timedelta
+            last_inbound = db.query(Message).filter(
+                Message.conversation_id == conversation_id,
+                Message.direction == MessageDirection.inbound,
+                Message.deleted_at.is_(None)
+            ).order_by(Message.created_at.desc()).first()
+
+            # If customer messaged within 24h, send as regular text (no template needed)
+            if last_inbound and (datetime.utcnow() - last_inbound.created_at) < timedelta(hours=24):
+                free_text = all_vars[0]
+                print(f"📨 Sending free text (24h window open) to {contact.phone}: {free_text[:50]}")
+                result = await send_text_message(contact.phone, free_text, phone_number_id=phone_id)
+                template_text = free_text  # Show actual text in chat, not template format
+            else:
+                # Outside 24h window — must use template
+                print(f"📨 Sending 'free' template (outside 24h window) to {contact.phone}")
+                result = await send_template_message(
+                    phone=contact.phone,
+                    template_name=template_name,
+                    language=template_lang,
+                    components=components,
+                    phone_number_id=phone_id
+                )
+        else:
+            print(f"📨 Sending template '{template_name}' to {contact.phone} via phone_id={phone_id}, lang={template_lang}")
+            print(f"📨 Variables: {all_vars}")
+            print(f"📨 Components: {components}")
+
+            result = await send_template_message(
+                phone=contact.phone,
+                template_name=template_name,
+                language=template_lang,
+                components=components,
+                phone_number_id=phone_id
+            )
 
         print(f"📨 Template result: {result}")
 

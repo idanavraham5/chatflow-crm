@@ -78,7 +78,20 @@ export default function Chat() {
     }
   }, [selectedConv?.id]);
 
-  useWebSocket(handleWsMessage);
+  const { connected } = useWebSocket(handleWsMessage);
+
+  // Refresh conversation list when WS reconnects (after disconnection)
+  const prevConnected = React.useRef(false);
+  useEffect(() => {
+    if (connected && !prevConnected.current) {
+      // Just reconnected — refresh everything
+      setRefreshTrigger(prev => prev + 1);
+      if (selectedConv) {
+        setSelectedConv(prev => prev ? { ...prev, _refresh: Date.now() } : prev);
+      }
+    }
+    prevConnected.current = connected;
+  }, [connected]);
 
   const handleSelectConversation = async (conv) => {
     setSelectedConv(conv);
@@ -118,10 +131,22 @@ export default function Chat() {
     setShowContactCard(prev => !prev);
   };
 
+  // Connection status banner
+  const ConnectionBanner = () => {
+    if (connected) return null;
+    return (
+      <div className="bg-red-500 text-white text-center text-xs py-1.5 px-4 z-50 relative">
+        ⚠️ אין חיבור — מנסה להתחבר מחדש...
+      </div>
+    );
+  };
+
   // ── Desktop layout ──
   if (!isMobile) {
     return (
-      <div className="h-screen flex font-rubik" dir="rtl">
+      <div className="h-screen flex flex-col font-rubik" dir="rtl">
+        <ConnectionBanner />
+        <div className="flex-1 flex min-h-0">
         <Sidebar />
         <ConversationList
           selectedId={selectedConv?.id}
@@ -140,6 +165,7 @@ export default function Chat() {
             onClose={() => setShowContactCard(false)}
           />
         )}
+        </div>
       </div>
     );
   }
@@ -147,6 +173,7 @@ export default function Chat() {
   // ── Mobile layout ──
   return (
     <div className="h-screen flex flex-col font-rubik" dir="rtl">
+      <ConnectionBanner />
       {/* Mobile views */}
       <div className="flex-1 overflow-hidden relative">
         {/* Conversation List */}

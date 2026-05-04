@@ -65,9 +65,25 @@ async function request(url, options = {}) {
         });
         if (retryRes.ok) return retryRes.json();
       }
+
+      // Refresh failed — only force logout if refresh token is also gone
+      const rt = localStorage.getItem('refreshToken');
+      if (!rt) {
+        localStorage.removeItem('token');
+        window.location.href = '/login';
+        throw new Error('Session expired');
+      }
     }
 
-    // Refresh failed — force logout
+    // If another refresh is in progress, wait and retry
+    await new Promise(r => setTimeout(r, 2000));
+    const retryRes = await fetch(`${API_BASE}${url}`, {
+      ...options,
+      headers: { ...headers(), ...options.headers },
+    });
+    if (retryRes.ok) return retryRes.json();
+
+    // Still failing — force logout
     localStorage.removeItem('token');
     localStorage.removeItem('refreshToken');
     window.location.href = '/login';

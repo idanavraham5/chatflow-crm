@@ -9,7 +9,7 @@ from models import User, Conversation, Message, MessageDirection, ReadStatus, Co
 from schemas import MessageCreate, MessageResponse
 from auth import get_current_user, log_action, sanitize_input, sanitize_search
 from websocket_manager import manager
-from whatsapp import send_text_message, send_image_message, send_document_message, send_template_message, send_audio_message, upload_media
+from whatsapp import send_text_message, send_image_message, send_document_message, send_template_message, send_audio_message, send_video_message, upload_media
 
 router = APIRouter(prefix="/api/conversations/{conversation_id}/messages", tags=["messages"])
 
@@ -294,16 +294,15 @@ async def send_wa_template(
 
 
 @router.post("/upload")
-async def upload_voice(
+async def upload_file(
     conversation_id: int,
     type: str = Query("voice"),
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Upload voice message or file and send via WhatsApp."""
+    """Upload any file (voice, image, document, video) and send via WhatsApp."""
     from models import Contact
-    import os, tempfile
 
     conv = db.query(Conversation).filter(Conversation.id == conversation_id).first()
     if not conv:
@@ -311,46 +310,67 @@ async def upload_voice(
     check_conversation_access(conv, current_user)
 
     file_bytes = await file.read()
-    mime_type = file.content_type or "audio/ogg"
+    mime_type = file.content_type or "application/octet-stream"
     # WhatsApp only accepts clean mime types without codec params
     if ";" in mime_type:
         mime_type = mime_type.split(";")[0].strip()
-    filename = file.filename or "voice.ogg"
+    filename = file.filename or "file"
 
     # Always use current default phone_id
     from whatsapp import get_default_phone_id
     phone_id = get_default_phone_id()
 
     media_url = None
+    wa_msg_id = None
     try:
         # Upload to WhatsApp CDN
-        print(f"🎤 Uploading voice: {len(file_bytes)} bytes, mime={mime_type}, phone_id={phone_id}")
+        print(f"📎 Uploading {type}: {len(file_bytes)} bytes, mime={mime_type}, name={filename}, phone_id={phone_id}")
         upload_result = await upload_media(file_bytes, mime_type, filename, phone_id)
         media_id = upload_result.get("id")
-        print(f"🎤 Upload result: {upload_result}")
+        print(f"📎 Upload result: {upload_result}")
 
         if media_id:
-            # Send audio message to customer
             contact = db.query(Contact).filter(Contact.id == conv.contact_id).first()
             if contact:
-                send_result = await send_audio_message(contact.phone, audio_id=media_id, phone_number_id=phone_id)
-                print(f"🎤 Send result: {send_result}")
+                send_result = None
+                if type in ("voice", "audio"):
+                    send_result = await send_audio_message(contact.phone, audio_id=media_id, phone_number_id=phone_id)
+                elif type == "image":
+                    send_result = await send_image_message(contact.phone, image_id=media_id, phone_number_id=phone_id)
+                elif type == "video":
+                    send_result = await send_video_message(contact.phone, video_id=media_id, phone_number_id=phone_id)
+                else:
+                    # file, document, PDF, etc.
+                    send_result = await send_document_message(
+                        contact.phone, document_id=media_id, filename=filename, phone_number_id=phone_id
+                    )
+                print(f"📎 Send result: {send_result}")
+                wa_msg_id = send_result.get("messages", [{}])[0].get("id") if send_result else None
             media_url = f"wa-media://{media_id}"
     except Exception as e:
-        print(f"❌ Voice upload/send error: {e}")
+        print(f"❌ File upload/send error: {e}")
         import traceback
         traceback.print_exc()
 
-    msg_type = "voice" if type == "voice" else "audio"
+    # Determine message type and display content
+    type_map = {
+        "voice": ("voice", "🎤 הודעה קולית"),
+        "audio": ("audio", f"🎵 {filename}"),
+        "image": ("image", f"📷 {filename}"),
+        "video": ("video", f"🎬 {filename}"),
+    }
+    msg_type, content = type_map.get(type, ("file", f"📎 {filename}"))
+
     msg = Message(
         conversation_id=conversation_id,
-        content="הודעה קולית" if type == "voice" else filename,
+        content=content,
         message_type=msg_type,
         media_url=media_url,
         direction=MessageDirection.outbound,
         sent_by=current_user.id,
         is_internal_note=False,
-        read_status=ReadStatus.sent
+        read_status=ReadStatus.sent,
+        wa_message_id=wa_msg_id
     )
     db.add(msg)
     conv.last_message_at = datetime.utcnow()

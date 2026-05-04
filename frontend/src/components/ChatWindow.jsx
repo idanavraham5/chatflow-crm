@@ -278,21 +278,34 @@ export default function ChatWindow({ conversation, onConversationUpdate, onBack,
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Create a fake media URL for demo (in production, upload to S3/storage)
-    const fakeUrl = URL.createObjectURL(file);
+    // Determine message type
     let messageType = 'file';
     if (type === 'image' || file.type.startsWith('image/')) messageType = 'image';
     else if (file.type.startsWith('video/')) messageType = 'video';
     else if (file.type.startsWith('audio/')) messageType = 'audio';
 
     try {
-      const msg = await sendMessage(conversation.id, {
-        content: `📎 ${file.name}`,
-        message_type: messageType,
-        media_url: fakeUrl,
+      // Upload file to WhatsApp CDN via our backend
+      const formData = new FormData();
+      formData.append('file', file, file.name);
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/conversations/${conversation.id}/messages/upload?type=${messageType}`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData,
       });
-      setMessages(prev => [...prev, msg]);
-    } catch (err) {}
+      if (res.ok) {
+        const msg = await res.json();
+        setMessages(prev => [...prev, msg]);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        console.error('File upload error:', err);
+        alert(`שגיאה בשליחת קובץ: ${err.detail || 'שגיאה לא ידועה'}`);
+      }
+    } catch (err) {
+      console.error('File upload error:', err);
+      alert('שגיאה בשליחת קובץ');
+    }
     e.target.value = '';
   };
 

@@ -68,6 +68,17 @@ def cleanup_expired_tokens():
 # ─── Login Rate Limiting ────────────────────────────────────────
 _login_attempts: dict = {}  # {ip: {"count": int, "last_attempt": datetime, "locked_until": datetime}}
 
+def get_real_ip(request: Request) -> str:
+    """Get real client IP behind reverse proxy (Render, nginx, etc.)."""
+    # X-Forwarded-For: client, proxy1, proxy2
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    real_ip = request.headers.get("x-real-ip")
+    if real_ip:
+        return real_ip.strip()
+    return request.client.host if request.client else "unknown"
+
 def check_rate_limit(ip: str) -> None:
     """Check if IP is rate-limited. Raises 429 if too many attempts."""
     now = datetime.utcnow()

@@ -1,4 +1,5 @@
 """Seed database with essential data only (no demo data)."""
+import os
 from datetime import datetime
 from sqlalchemy.orm import Session
 from models import (
@@ -8,7 +9,25 @@ from models import (
 from auth import get_password_hash
 
 
+def emergency_password_reset(db: Session):
+    """Reset admin password if RESET_ADMIN_PASSWORD env var is set.
+    Set env var in Render → remove it after login."""
+    new_password = os.getenv("RESET_ADMIN_PASSWORD")
+    if not new_password:
+        return
+    admin = db.query(User).filter(User.username == "admin").first()
+    if admin:
+        admin.password_hash = get_password_hash(new_password)
+        db.commit()
+        print(f"🔑 Admin password reset via RESET_ADMIN_PASSWORD env var")
+    else:
+        print("⚠️ RESET_ADMIN_PASSWORD set but no 'admin' user found")
+
+
 def seed(db: Session):
+    # Emergency password reset (if env var set)
+    emergency_password_reset(db)
+
     # Check if already seeded
     if db.query(User).first():
         return

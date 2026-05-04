@@ -1,3 +1,4 @@
+import os
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from database import get_db
@@ -8,7 +9,7 @@ from auth import (
     verify_refresh_token, get_current_user, require_admin,
     get_password_hash, validate_password_strength,
     check_rate_limit, record_failed_login, record_successful_login,
-    blacklist_token, log_action, sanitize_input
+    blacklist_token, log_action, sanitize_input, get_real_ip
 )
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -16,8 +17,8 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 @router.post("/login", response_model=TokenResponse)
 def login(req: LoginRequest, request: Request, db: Session = Depends(get_db)):
-    # Get client IP for rate limiting
-    client_ip = request.client.host if request.client else "unknown"
+    # Get real client IP (behind Render/nginx proxy)
+    client_ip = get_real_ip(request)
 
     # Check rate limit BEFORE checking credentials
     check_rate_limit(client_ip)

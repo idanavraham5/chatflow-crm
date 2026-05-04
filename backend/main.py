@@ -14,6 +14,7 @@ from models import User, Conversation, Message, Contact, MessageDirection, ReadS
 from websocket_manager import manager
 from auth import SECRET_KEY, ALGORITHM, cleanup_expired_tokens, cleanup_old_login_attempts
 from seed_data import seed
+from migrate_merge_duplicates import run_migration as run_phone_migration
 
 from routers import auth as auth_router
 from routers import conversations, messages, contacts, campaigns, agents, templates, dashboard, labels, webhook
@@ -121,6 +122,15 @@ async def lifespan(app: FastAPI):
     db = SessionLocal()
     try:
         seed(db)
+    finally:
+        db.close()
+
+    # Run phone normalization & duplicate merge (safe to run multiple times)
+    db = SessionLocal()
+    try:
+        run_phone_migration(db)
+    except Exception as e:
+        print(f"⚠️ Phone migration error (non-fatal): {e}")
     finally:
         db.close()
 

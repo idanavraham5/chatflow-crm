@@ -102,11 +102,14 @@ async def _handle_incoming_message(event: dict, db: Session):
     # ── Find or create contact ──
     display_phone = format_phone_display(from_phone)
     normalized = normalize_phone(from_phone)
-    # Also build alternative formats for matching
+    # Build ALL possible formats the contact might be stored as
     local_no_dash = ("0" + normalized[3:]) if normalized.startswith("972") else normalized
-    local_with_dash = display_phone  # e.g. 054-449-9787
+    # Extract just the digits for flexible matching
+    raw_digits = normalized  # e.g. 972544499787
+    last_7 = raw_digits[-7:] if len(raw_digits) >= 7 else raw_digits
+    last_9 = raw_digits[-9:] if len(raw_digits) >= 9 else raw_digits
 
-    # Try all possible phone formats the contact might be stored as
+    # Method 1: Exact match on all known formats
     print(f"🔍 Looking for contact: from={from_phone}, display={display_phone}, normalized={normalized}, local={local_no_dash}")
     contact = db.query(Contact).filter(
         Contact.phone.in_([
@@ -118,14 +121,34 @@ async def _handle_incoming_message(event: dict, db: Session):
         ])
     ).first()
 
-    # Also try partial match — phone contains the local digits
-    if not contact and len(local_no_dash) >= 10:
-        contact = db.query(Contact).filter(
-            Contact.phone.contains(local_no_dash[-7:])  # Last 7 digits
-        ).first()
+    # Method 2: Strip all non-digits from stored phone and compare last 9 digits
+    # This catches ANY format mismatch (dashes, spaces, +, etc.)
+    if not contact:
+        import re
+        all_contacts = db.query(Contact).filter(~Contact.phone.startswith("merged_")).all()
+        for c in all_contacts:
+            stored_digits = re.sub(r'[^0-9]', '', c.phone)
+            if stored_digits.startswith("0"):
+                stored_digits = "972" + stored_digits[1:]
+            elif not stored_digits.startswith("972"):
+                stored_digits = "972" + stored_digits
+            # Compare normalized digits
+            if stored_digits == raw_digits:
+                contact = c
+                print(f"✅ Found contact via digit normalization: id={c.id}, phone={c.phone}")
+                break
+            # Fallback: last 9 digits match (handles edge cases)
+            if len(stored_digits) >= 9 and len(raw_digits) >= 9 and stored_digits[-9:] == last_9:
+                contact = c
+                print(f"✅ Found contact via last-9-digits match: id={c.id}, phone={c.phone}")
+                break
 
     if contact:
         print(f"✅ Found existing contact: id={contact.id}, name={contact.name}, phone={contact.phone}")
+        # Normalize the stored phone to display format if it's not already
+        if contact.phone != display_phone and not contact.phone.startswith("merged_"):
+            print(f"  📞 Normalizing stored phone: '{contact.phone}' → '{display_phone}'")
+            contact.phone = display_phone
     else:
         print(f"🆕 Creating new contact for {display_phone}")
 
@@ -157,12 +180,23 @@ async def _handle_incoming_message(event: dict, db: Session):
                 conv.status = ConversationStatus.open
                 print(f"🔓 Reopened closed conversation {conv.id} due to button reply")
 
-    # Fallback: find any open conversation for this contact
+    # Fallback: find any non-closed conversation for this contact (prefer most recent)
     if not conv:
         conv = db.query(Conversation).filter(
             Conversation.contact_id == contact.id,
             Conversation.status != ConversationStatus.closed
-        ).first()
+        ).order_by(Conversation.last_message_at.desc()).first()
+
+    # Last resort: find the most recent closed conversation and reopen it
+    # (better than creating a new one — keeps conversation history together)
+    if not conv:
+        conv = db.query(Conversation).filter(
+            Conversation.contact_id == contact.id,
+            Conversation.status == ConversationStatus.closed
+        ).order_by(Conversation.last_message_at.desc()).first()
+        if conv:
+            conv.status = ConversationStatus.open
+            print(f"🔓 Reopened most recent closed conversation {conv.id} for contact {contact.id}")
 
     is_new_conversation = False
     if not conv:
@@ -170,11 +204,21 @@ async def _handle_incoming_message(event: dict, db: Session):
         if "postgresql" in DATABASE_URL:
             db.execute(text("SELECT pg_advisory_xact_lock(:id)"), {"id": contact.id})
 
-        # Re-check after lock (another request may have created it)
+        # Re-check after lock — look for ANY conversation (including closed)
         conv = db.query(Conversation).filter(
             Conversation.contact_id == contact.id,
             Conversation.status != ConversationStatus.closed
-        ).first()
+        ).order_by(Conversation.last_message_at.desc()).first()
+
+        if not conv:
+            # Try reopening a closed one
+            conv = db.query(Conversation).filter(
+                Conversation.contact_id == contact.id,
+                Conversation.status == ConversationStatus.closed
+            ).order_by(Conversation.last_message_at.desc()).first()
+            if conv:
+                conv.status = ConversationStatus.open
+                print(f"🔓 Reopened closed conversation {conv.id} after lock")
 
         if not conv:
             is_new_conversation = True

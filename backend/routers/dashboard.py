@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, extract, case
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from database import get_db
 from models import User, Conversation, Message, ConversationStatus, UserRole, MessageDirection
 from schemas import DashboardResponse, DashboardStats, AgentStats
@@ -16,7 +16,7 @@ def get_dashboard(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin)
 ):
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     date_from = now - timedelta(days=days)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
 

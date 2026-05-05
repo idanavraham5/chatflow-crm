@@ -235,10 +235,13 @@ async def send_wa_template(
             # If customer messaged within 24h, send as regular text (no template needed)
             # Use timezone-aware UTC now to handle both naive and aware datetimes from DB
             now_utc = datetime.now(timezone.utc)
-            last_inbound_time = last_inbound.created_at if last_inbound else None
-            if last_inbound_time and last_inbound_time.tzinfo is None:
-                last_inbound_time = last_inbound_time.replace(tzinfo=timezone.utc)
-            if last_inbound and (now_utc - last_inbound_time) < timedelta(hours=24):
+            is_within_24h = False
+            if last_inbound:
+                last_inbound_time = last_inbound.created_at
+                if last_inbound_time.tzinfo is None:
+                    last_inbound_time = last_inbound_time.replace(tzinfo=timezone.utc)
+                is_within_24h = (now_utc - last_inbound_time) < timedelta(hours=24)
+            if is_within_24h:
                 free_text = all_vars[0]
                 print(f"📨 Sending free text (24h window open) to {contact.phone}: {free_text[:50]}")
                 result = await send_text_message(contact.phone, free_text, phone_number_id=phone_id)

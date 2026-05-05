@@ -120,7 +120,7 @@ export default function Agents() {
         {loading ? (
           <div className="text-center py-20 text-wa-textSecondary">טוען...</div>
         ) : (
-          <div className="bg-wa-sidebar rounded-xl border border-wa-border overflow-hidden">
+          <div className="bg-wa-sidebar rounded-xl border border-wa-border overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="text-wa-textSecondary text-sm border-b border-wa-border bg-wa-header">
@@ -129,7 +129,7 @@ export default function Agents() {
                   <th className="text-center py-4 px-5">תפקיד</th>
                   <th className="text-center py-4 px-5">סטטוס</th>
                   <th className="text-center py-4 px-5">פעיל</th>
-                  <th className="text-center py-4 px-5">פעולות</th>
+                  <th className="text-center py-4 px-5 min-w-[130px]">פעולות</th>
                 </tr>
               </thead>
               <tbody>
@@ -170,8 +170,8 @@ export default function Agents() {
                           ${agent.is_active ? 'right-1' : 'left-1'}`} />
                       </button>
                     </td>
-                    <td className="text-center py-4 px-5">
-                      <div className="flex items-center justify-center gap-2">
+                    <td className="text-center py-4 px-3 min-w-[130px]">
+                      <div className="flex items-center justify-center gap-2 flex-nowrap">
                         <button
                           onClick={() => openEditAgent(agent)}
                           className="text-wa-textSecondary hover:text-wa-light text-lg p-1"

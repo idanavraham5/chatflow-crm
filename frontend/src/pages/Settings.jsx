@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import {
   getTemplates, createTemplate, updateTemplate, deleteTemplate,
-  getAgents, createAgent, updateAgent, resetAgentPassword,
+  getAgents, createAgent, updateAgent, resetAgentPassword, deleteAgent,
   getLabels, createLabel, updateLabel, deleteLabel,
   getWhatsAppNumbers
 } from '../api';
@@ -44,6 +44,8 @@ export default function Settings() {
   const [editAgentForm, setEditAgentForm] = useState({ name: '', status: '' });
   const [resetId, setResetId] = useState(null);
   const [newPassword, setNewPassword] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [transferTo, setTransferTo] = useState('');
 
   // ── Labels state ──
   const [labels, setLabels] = useState([]);
@@ -120,6 +122,12 @@ export default function Settings() {
     if (!editAgentForm.name) return;
     try { await updateAgent(editAgent.id, editAgentForm); setEditAgent(null); fetchAgents(); }
     catch { alert('שגיאה בעדכון נציג'); }
+  };
+  const handleDeleteAgent = (agent) => { setDeleteTarget(agent); setTransferTo(''); };
+  const confirmDeleteAgent = async () => {
+    if (!deleteTarget) return;
+    try { await deleteAgent(deleteTarget.id, transferTo || undefined); setDeleteTarget(null); setTransferTo(''); fetchAgents(); }
+    catch (e) { alert(e.message || 'שגיאה במחיקה'); }
   };
 
   // ── Label handlers ──
@@ -347,7 +355,7 @@ export default function Settings() {
               </button>
             </div>
 
-            <div className="bg-wa-sidebar rounded-xl border border-wa-border overflow-hidden">
+            <div className="bg-wa-sidebar rounded-xl border border-wa-border overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="text-wa-textSecondary text-xs border-b border-wa-border bg-wa-header">
@@ -393,8 +401,11 @@ export default function Settings() {
                       </td>
                       <td className="text-center py-3 px-4">
                         <div className="flex items-center justify-center gap-2">
-                          <button onClick={() => openEditAgentModal(agent)} className="text-wa-textSecondary hover:text-wa-light text-xs">✏️</button>
-                          <button onClick={() => { setResetId(agent.id); setNewPassword(''); }} className="text-wa-textSecondary hover:text-wa-light text-xs">🔑</button>
+                          <button onClick={() => openEditAgentModal(agent)} className="text-wa-textSecondary hover:text-wa-light text-lg p-1" title="עריכה">✏️</button>
+                          <button onClick={() => { setResetId(agent.id); setNewPassword(''); }} className="text-wa-textSecondary hover:text-wa-light text-lg p-1" title="איפוס סיסמה">🔑</button>
+                          {agent.role !== 'admin' && (
+                            <button onClick={() => handleDeleteAgent(agent)} className="text-red-400 hover:text-red-500 text-lg p-1" title="מחיקת נציג">🗑️</button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -596,6 +607,40 @@ export default function Settings() {
             <div className="flex gap-3 mt-6">
               <button onClick={handleEditAgentSave} disabled={!editAgentForm.name} className="flex-1 bg-wa-dark hover:bg-wa-medium text-white py-2.5 rounded-lg font-medium transition disabled:opacity-30">שמור שינויים</button>
               <button onClick={() => setEditAgent(null)} className="px-6 py-2.5 text-wa-textSecondary">ביטול</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete agent modal */}
+      {deleteTarget && (
+        <div className="modal-overlay" onClick={() => setDeleteTarget(null)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold mb-2">🗑️ מחיקת נציג — {deleteTarget.name}</h3>
+            <p className="text-wa-textSecondary text-sm mb-5">
+              כל השיחות שמוקצות לנציג זה יועברו לנציג שתבחר. אם לא תבחר — השיחות יישארו ללא הקצאה.
+            </p>
+            <div>
+              <label className="block text-wa-textSecondary text-xs mb-1.5">העבר שיחות לנציג:</label>
+              <select
+                value={transferTo}
+                onChange={(e) => setTransferTo(e.target.value)}
+                className="w-full bg-wa-input text-wa-text rounded-lg px-3 py-2.5 text-sm outline-none cursor-pointer"
+              >
+                <option value="">ללא הקצאה (שיחות יהיו פנויות)</option>
+                {agents
+                  .filter(a => a.id !== deleteTarget.id && a.is_active)
+                  .map(a => (
+                    <option key={a.id} value={a.id}>
+                      {a.name} {a.role === 'admin' ? '(מנהל)' : '(נציג)'}
+                    </option>
+                  ))
+                }
+              </select>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button onClick={confirmDeleteAgent} className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-lg font-medium transition">מחק נציג</button>
+              <button onClick={() => setDeleteTarget(null)} className="px-6 py-2.5 text-wa-textSecondary">ביטול</button>
             </div>
           </div>
         </div>

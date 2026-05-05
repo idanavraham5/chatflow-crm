@@ -20,15 +20,15 @@ def login(req: LoginRequest, request: Request, db: Session = Depends(get_db)):
     # Get real client IP (behind Render/nginx proxy)
     client_ip = get_real_ip(request)
 
-    # Check rate limit BEFORE checking credentials
-    check_rate_limit(client_ip)
+    # Check rate limit BEFORE checking credentials (DB-backed)
+    check_rate_limit(client_ip, db)
 
     # Sanitize input
     username = sanitize_input(req.username, max_length=50)
 
     user = db.query(User).filter(User.username == username).first()
     if not user or not verify_password(req.password, user.password_hash):
-        record_failed_login(client_ip)
+        record_failed_login(client_ip, db)
         log_action(0, "LOGIN_FAILED", f"IP={client_ip} username={username}")
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
@@ -37,7 +37,7 @@ def login(req: LoginRequest, request: Request, db: Session = Depends(get_db)):
         raise HTTPException(status_code=403, detail="Account suspended")
 
     # Success — clear rate limit and generate tokens
-    record_successful_login(client_ip)
+    record_successful_login(client_ip, db)
 
     access_token = create_access_token(data={"sub": str(user.id)})
     refresh_token = create_refresh_token(data={"sub": str(user.id)})
@@ -80,19 +80,19 @@ def refresh_token(request: Request, db: Session = Depends(get_db)):
 
 
 @router.post("/logout")
-async def logout(request: Request, current_user: User = Depends(get_current_user)):
+async def logout(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Invalidate the current access token and refresh token."""
     auth_header = request.headers.get("authorization", "")
     if auth_header.lower().startswith("bearer "):
         token = auth_header[7:]
-        blacklist_token(token)
+        blacklist_token(token, db)
 
     # Also blacklist refresh token if provided in the request body
     try:
         body = await request.json()
         refresh_token = body.get("refresh_token")
         if refresh_token:
-            blacklist_token(refresh_token)
+            blacklist_token(refresh_token, db)
     except Exception:
         pass  # No body or invalid JSON is fine — access token is already blacklisted
 
@@ -111,7 +111,19 @@ def change_password(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Allow user to change their own password."""
+    """Allow user to change their own password (requires current password)."""
+    # Require current password for self-service change
+    if not data.current_password:
+        raise HTTPException(
+            status_code=400,
+            detail="יש להזין את הסיסמה הנוכחית"
+        )
+    if not verify_password(data.current_password, current_user.password_hash):
+        raise HTTPException(
+            status_code=400,
+            detail="הסיסמה הנוכחית שגויה"
+        )
+
     if not validate_password_strength(data.new_password):
         raise HTTPException(
             status_code=400,

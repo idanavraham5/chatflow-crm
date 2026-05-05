@@ -78,6 +78,25 @@ class RecipientStatus(str, enum.Enum):
     replied = "replied"
 
 
+class TokenBlacklist(Base):
+    __tablename__ = "token_blacklist"
+
+    id = Column(Integer, primary_key=True, index=True)
+    token_hash = Column(String(64), unique=True, nullable=False, index=True)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class LoginAttempt(Base):
+    __tablename__ = "login_attempts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    ip_address = Column(String(45), nullable=False, index=True)
+    attempt_count = Column(Integer, default=0)
+    last_attempt = Column(DateTime(timezone=True), server_default=func.now())
+    locked_until = Column(DateTime(timezone=True), nullable=True)
+
+
 class User(Base):
     __tablename__ = "users"
 

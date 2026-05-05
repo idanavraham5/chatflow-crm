@@ -1,5 +1,6 @@
 """Seed database with essential data only (no demo data)."""
 import os
+import secrets
 from datetime import datetime
 from sqlalchemy.orm import Session
 from models import (
@@ -33,10 +34,16 @@ def seed(db: Session):
         return
 
     # ── Admin User ──
+    # Use ADMIN_PASSWORD env var or generate a secure random one
+    admin_password = os.getenv("ADMIN_PASSWORD", "")
+    if not admin_password:
+        admin_password = secrets.token_urlsafe(16)
+        print(f"🔑 Generated admin password: {admin_password}")
+        print(f"   ⚠️ Save this password! Set ADMIN_PASSWORD env var to use a specific one.")
     admin = User(
         name="מנהל המערכת",
         username="admin",
-        password_hash=get_password_hash("admin123"),
+        password_hash=get_password_hash(admin_password),
         role=UserRole.admin,
         status=UserStatus.online
     )

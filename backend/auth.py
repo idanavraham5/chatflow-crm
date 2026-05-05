@@ -3,9 +3,9 @@ Authentication & Security Module — ChatFlow CRM
 =================================================
 - bcrypt with 14 rounds (industry best practice)
 - JWT with short expiration + refresh tokens
-- Rate limiting on login attempts
+- Rate limiting on login attempts (DB-backed, survives restarts)
 - Audit logging for sensitive actions
-- Token blacklist for logout
+- Token blacklist for logout (DB-backed, survives restarts)
 - Input sanitization
 """
 
@@ -13,7 +13,8 @@ import os
 import re
 import secrets
 import logging
-from datetime import datetime, timedelta
+import hashlib
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Set
 from jose import JWTError, jwt
 import bcrypt
@@ -21,7 +22,7 @@ from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from database import get_db
-from models import User
+from models import User, TokenBlacklist, LoginAttempt
 
 # ─── Configuration ───────────────────────────────────────────────
 # CRITICAL: In production, set these as environment variables!
@@ -34,43 +35,74 @@ BCRYPT_ROUNDS = 14               # Higher = slower = more secure (default is 12)
 MAX_LOGIN_ATTEMPTS = 5           # Lock after 5 failed attempts
 LOGIN_LOCKOUT_MINUTES = 15       # Lockout duration
 
-# ─── Security Logger ────────────────────────────────────────────
+# ─── Security Logger (stdout — works on ephemeral filesystems like Render) ──
 audit_logger = logging.getLogger("chatflow.audit")
 audit_logger.setLevel(logging.INFO)
 if not audit_logger.handlers:
-    handler = logging.FileHandler("audit.log", encoding="utf-8")
+    handler = logging.StreamHandler()
     handler.setFormatter(logging.Formatter(
-        "%(asctime)s | %(levelname)s | %(message)s",
+        "%(asctime)s | AUDIT | %(levelname)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S"
     ))
     audit_logger.addHandler(handler)
 
-# ─── Token Blacklist (in-memory with auto-cleanup) ──────────────
-_token_blacklist: dict = {}  # {token: expiry_datetime}
+# ─── Token Blacklist (DB-backed — survives restarts) ──────────────
 
-def blacklist_token(token: str):
-    # Token expires after ACCESS_TOKEN_EXPIRE_MINUTES — no need to keep forever
-    expiry = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES + 5)
-    _token_blacklist[token] = expiry
+def _hash_token(token: str) -> str:
+    """Hash token for storage — we don't need to store the raw JWT."""
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
-def is_token_blacklisted(token: str) -> bool:
-    return token in _token_blacklist
+def blacklist_token(token: str, db: Session = None):
+    """Add token to blacklist. If no db session, get one."""
+    if db is None:
+        db = next(get_db())
+        try:
+            _blacklist_token_impl(token, db)
+        finally:
+            db.close()
+    else:
+        _blacklist_token_impl(token, db)
+
+def _blacklist_token_impl(token: str, db: Session):
+    token_hash = _hash_token(token)
+    existing = db.query(TokenBlacklist).filter(TokenBlacklist.token_hash == token_hash).first()
+    if not existing:
+        entry = TokenBlacklist(
+            token_hash=token_hash,
+            expires_at=datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES + 5)
+        )
+        db.add(entry)
+        db.commit()
+
+def is_token_blacklisted(token: str, db: Session = None) -> bool:
+    if db is None:
+        db = next(get_db())
+        try:
+            return _is_blacklisted_impl(token, db)
+        finally:
+            db.close()
+    return _is_blacklisted_impl(token, db)
+
+def _is_blacklisted_impl(token: str, db: Session) -> bool:
+    token_hash = _hash_token(token)
+    return db.query(TokenBlacklist).filter(TokenBlacklist.token_hash == token_hash).first() is not None
 
 def cleanup_expired_tokens():
-    """Remove expired tokens from blacklist to free memory."""
-    now = datetime.utcnow()
-    expired = [t for t, exp in _token_blacklist.items() if now > exp]
-    for t in expired:
-        _token_blacklist.pop(t, None)
-    if expired:
-        print(f"🧹 Cleaned {len(expired)} expired tokens from blacklist")
+    """Remove expired tokens from blacklist table."""
+    db = next(get_db())
+    try:
+        now = datetime.now(timezone.utc)
+        deleted = db.query(TokenBlacklist).filter(TokenBlacklist.expires_at < now).delete()
+        db.commit()
+        if deleted:
+            print(f"🧹 Cleaned {deleted} expired tokens from blacklist")
+    finally:
+        db.close()
 
-# ─── Login Rate Limiting ────────────────────────────────────────
-_login_attempts: dict = {}  # {ip: {"count": int, "last_attempt": datetime, "locked_until": datetime}}
+# ─── Login Rate Limiting (DB-backed — survives restarts) ────────
 
 def get_real_ip(request: Request) -> str:
     """Get real client IP behind reverse proxy (Render, nginx, etc.)."""
-    # X-Forwarded-For: client, proxy1, proxy2
     forwarded = request.headers.get("x-forwarded-for")
     if forwarded:
         return forwarded.split(",")[0].strip()
@@ -79,17 +111,26 @@ def get_real_ip(request: Request) -> str:
         return real_ip.strip()
     return request.client.host if request.client else "unknown"
 
-def check_rate_limit(ip: str) -> None:
+def check_rate_limit(ip: str, db: Session = None) -> None:
     """Check if IP is rate-limited. Raises 429 if too many attempts."""
-    now = datetime.utcnow()
-    record = _login_attempts.get(ip)
+    if db is None:
+        db = next(get_db())
+        try:
+            _check_rate_limit_impl(ip, db)
+        finally:
+            db.close()
+    else:
+        _check_rate_limit_impl(ip, db)
 
+def _check_rate_limit_impl(ip: str, db: Session):
+    now = datetime.now(timezone.utc)
+    record = db.query(LoginAttempt).filter(LoginAttempt.ip_address == ip).first()
     if not record:
         return
 
     # Check if currently locked out
-    if record.get("locked_until") and now < record["locked_until"]:
-        remaining = (record["locked_until"] - now).seconds
+    if record.locked_until and now < record.locked_until:
+        remaining = int((record.locked_until - now).total_seconds())
         audit_logger.warning(f"RATE_LIMIT | IP={ip} | Blocked login attempt during lockout ({remaining}s remaining)")
         raise HTTPException(
             status_code=429,
@@ -97,35 +138,62 @@ def check_rate_limit(ip: str) -> None:
         )
 
     # Reset if lockout expired
-    if record.get("locked_until") and now >= record["locked_until"]:
-        _login_attempts[ip] = {"count": 0, "last_attempt": now, "locked_until": None}
+    if record.locked_until and now >= record.locked_until:
+        record.attempt_count = 0
+        record.locked_until = None
+        db.commit()
 
-def record_failed_login(ip: str) -> None:
+def record_failed_login(ip: str, db: Session = None) -> None:
     """Record a failed login attempt."""
-    now = datetime.utcnow()
-    record = _login_attempts.get(ip, {"count": 0, "last_attempt": now, "locked_until": None})
-    record["count"] += 1
-    record["last_attempt"] = now
+    if db is None:
+        db = next(get_db())
+        try:
+            _record_failed_impl(ip, db)
+        finally:
+            db.close()
+    else:
+        _record_failed_impl(ip, db)
 
-    if record["count"] >= MAX_LOGIN_ATTEMPTS:
-        record["locked_until"] = now + timedelta(minutes=LOGIN_LOCKOUT_MINUTES)
+def _record_failed_impl(ip: str, db: Session):
+    now = datetime.now(timezone.utc)
+    record = db.query(LoginAttempt).filter(LoginAttempt.ip_address == ip).first()
+    if not record:
+        record = LoginAttempt(ip_address=ip, attempt_count=0, last_attempt=now)
+        db.add(record)
+    record.attempt_count += 1
+    record.last_attempt = now
+
+    if record.attempt_count >= MAX_LOGIN_ATTEMPTS:
+        record.locked_until = now + timedelta(minutes=LOGIN_LOCKOUT_MINUTES)
         audit_logger.warning(f"LOCKOUT | IP={ip} | Account locked after {MAX_LOGIN_ATTEMPTS} failed attempts")
 
-    _login_attempts[ip] = record
+    db.commit()
 
-def record_successful_login(ip: str) -> None:
+def record_successful_login(ip: str, db: Session = None) -> None:
     """Clear failed attempts on successful login."""
-    _login_attempts.pop(ip, None)
+    if db is None:
+        db = next(get_db())
+        try:
+            db.query(LoginAttempt).filter(LoginAttempt.ip_address == ip).delete()
+            db.commit()
+        finally:
+            db.close()
+    else:
+        db.query(LoginAttempt).filter(LoginAttempt.ip_address == ip).delete()
+        db.commit()
 
 def cleanup_old_login_attempts():
     """Remove stale login attempt records older than 1 hour."""
-    now = datetime.utcnow()
-    stale = [ip for ip, rec in _login_attempts.items()
-             if (now - rec.get("last_attempt", now)).total_seconds() > 3600]
-    for ip in stale:
-        _login_attempts.pop(ip, None)
-    if stale:
-        print(f"🧹 Cleaned {len(stale)} stale login attempt records")
+    db = next(get_db())
+    try:
+        now = datetime.now(timezone.utc)
+        cutoff = now - timedelta(hours=1)
+        deleted = db.query(LoginAttempt).filter(LoginAttempt.last_attempt < cutoff).delete()
+        db.commit()
+        if deleted:
+            print(f"🧹 Cleaned {deleted} stale login attempt records")
+    finally:
+        db.close()
 
 
 # ─── Password Hashing (bcrypt with configurable rounds) ─────────
@@ -228,15 +296,17 @@ def get_current_user(
         if auth_header.lower().startswith("bearer "):
             token = auth_header[7:]
 
-    # Also check query parameter (for media proxy requests from <img> tags)
+    # Also check query parameter — restricted to media proxy routes only
     if not token:
-        token = request.query_params.get("token")
+        request_path = request.url.path
+        if "/media/" in request_path or "/webhook/whatsapp/media/" in request_path:
+            token = request.query_params.get("token")
 
     if not token:
         raise credentials_exception
 
-    # Check blacklist
-    if is_token_blacklisted(token):
+    # Check blacklist (DB-backed)
+    if is_token_blacklisted(token, db):
         raise credentials_exception
 
     try:

@@ -92,6 +92,7 @@ class UserUpdate(BaseModel):
 
 class ResetPasswordRequest(BaseModel):
     new_password: str
+    current_password: Optional[str] = None  # Required for self-service change, not for admin reset
 
 
 # Contact

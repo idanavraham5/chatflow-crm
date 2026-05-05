@@ -324,6 +324,24 @@ async def upload_file(
         mime_type = mime_type.split(";")[0].strip()
     filename = file.filename or "file"
 
+    # Validate file type — whitelist allowed MIME types
+    ALLOWED_MIME_TYPES = {
+        "image/jpeg", "image/png", "image/webp", "image/gif",
+        "video/mp4", "video/3gpp",
+        "audio/ogg", "audio/mpeg", "audio/mp4", "audio/amr", "audio/aac",
+        "application/pdf",
+        "application/vnd.ms-excel",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/vnd.ms-powerpoint",
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "text/plain", "text/csv",
+        "application/zip",
+    }
+    if mime_type not in ALLOWED_MIME_TYPES:
+        raise HTTPException(status_code=400, detail=f"סוג קובץ לא נתמך: {mime_type}")
+
     # Always use current default phone_id
     from whatsapp import get_default_phone_id
     phone_id = get_default_phone_id()
@@ -412,13 +430,24 @@ async def mark_read(
     ).update({"is_read": True})
     db.commit()
 
-    # Notify other agents that this conversation was read (clears their unread badge)
+    # Notify relevant agents that this conversation was read (clears their unread badge)
     if updated > 0:
-        await manager.broadcast({
-            "type": "conversation_read",
-            "conversation_id": conversation_id,
-            "read_by": current_user.id
-        })
+        notify_users = set()
+        if conv.owner_id:
+            notify_users.add(conv.owner_id)
+        if conv.shared_with:
+            notify_users.update(conv.shared_with)
+        # Always notify admins
+        from models import UserRole
+        admins = db.query(User).filter(User.role == UserRole.admin).all()
+        for a in admins:
+            notify_users.add(a.id)
+        if notify_users:
+            await manager.send_to_users(list(notify_users), {
+                "type": "conversation_read",
+                "conversation_id": conversation_id,
+                "read_by": current_user.id
+            })
 
     return {"message": "Marked as read"}
 
@@ -450,11 +479,21 @@ async def delete_message(
     db.commit()
     log_action(current_user.id, "MESSAGE_DELETED", f"msg_id={message_id} conv={conversation_id}")
 
-    # Notify via WebSocket so other users see the deletion in real-time
-    await manager.broadcast({
-        "type": "message_deleted",
-        "conversation_id": conversation_id,
-        "message_id": message_id
-    })
+    # Notify relevant users via WebSocket so they see the deletion in real-time
+    notify_users = set()
+    if conv.owner_id:
+        notify_users.add(conv.owner_id)
+    if conv.shared_with:
+        notify_users.update(conv.shared_with)
+    from models import UserRole
+    admins = db.query(User).filter(User.role == UserRole.admin).all()
+    for a in admins:
+        notify_users.add(a.id)
+    if notify_users:
+        await manager.send_to_users(list(notify_users), {
+            "type": "message_deleted",
+            "conversation_id": conversation_id,
+            "message_id": message_id
+        })
 
     return {"message": "Deleted"}

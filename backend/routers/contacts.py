@@ -5,7 +5,7 @@ from typing import Optional, List
 from database import get_db
 from models import User, Contact
 from schemas import ContactCreate, ContactUpdate, ContactResponse
-from auth import get_current_user
+from auth import get_current_user, sanitize_search
 from whatsapp import normalize_phone, format_phone_display
 
 router = APIRouter(prefix="/api/contacts", tags=["contacts"])
@@ -20,10 +20,11 @@ def list_contacts(
 ):
     query = db.query(Contact)
     if search:
+        safe_search = sanitize_search(search)
         query = query.filter(
             or_(
-                Contact.name.ilike(f"%{search}%"),
-                Contact.phone.ilike(f"%{search}%")
+                Contact.name.ilike(f"%{safe_search}%"),
+                Contact.phone.ilike(f"%{safe_search}%")
             )
         )
     if category:

@@ -10,7 +10,7 @@ from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 
 from database import engine, Base, SessionLocal, get_db
-from models import User, Conversation, Message, Contact, MessageDirection, ReadStatus, MessageType, ConversationStatus
+from models import User, Conversation, Message, Contact, MessageDirection, ReadStatus, MessageType, ConversationStatus, TokenBlacklist, LoginAttempt
 from websocket_manager import manager
 from auth import SECRET_KEY, ALGORITHM, cleanup_expired_tokens, cleanup_old_login_attempts
 from seed_data import seed
@@ -175,7 +175,12 @@ app = FastAPI(
 )
 
 # ─── CORS — Restrict in production ──────────────────────────────
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
+_raw_origins = os.getenv("ALLOWED_ORIGINS", "")
+if _raw_origins and _raw_origins != "*":
+    ALLOWED_ORIGINS = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+else:
+    # Default: allow same-origin only (no CORS). In dev, set ALLOWED_ORIGINS explicitly.
+    ALLOWED_ORIGINS = []
 
 app.add_middleware(
     CORSMiddleware,

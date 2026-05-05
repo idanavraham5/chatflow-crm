@@ -29,11 +29,13 @@ services:
           property: connectionString
       - key: WHATSAPP_TOKEN
         sync: false
+      - key: WHATSAPP_APP_SECRET
+        sync: false
       - key: WHATSAPP_VERIFY_TOKEN
         value: chatflow_verify_2024
       - key: WHATSAPP_PHONE_IDS
         sync: false
       - key: ALLOWED_ORIGINS
-        value: "*"
+        sync: false
       - key: SERVE_FRONTEND
         value: "true"

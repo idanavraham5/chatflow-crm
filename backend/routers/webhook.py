@@ -1,6 +1,9 @@
 """
 WhatsApp Cloud API Webhook — receives incoming messages and status updates from Meta.
 """
+import os
+import hmac
+import hashlib
 from fastapi import APIRouter, Request, HTTPException, Depends, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import text
@@ -20,6 +23,29 @@ from whatsapp import (
 from auth import get_current_user
 
 router = APIRouter(prefix="/api/webhook", tags=["webhook"])
+
+# App Secret for webhook signature verification
+WHATSAPP_APP_SECRET = os.getenv("WHATSAPP_APP_SECRET", "")
+
+
+def verify_webhook_signature(payload: bytes, signature_header: str) -> bool:
+    """Verify that the webhook payload was sent by Meta using HMAC-SHA256."""
+    if not WHATSAPP_APP_SECRET:
+        # If no app secret configured, log warning but allow (for dev/migration)
+        print("⚠️ WHATSAPP_APP_SECRET not set — skipping signature verification")
+        return True
+    if not signature_header:
+        return False
+    # Header format: "sha256=<hex_signature>"
+    if not signature_header.startswith("sha256="):
+        return False
+    expected_sig = signature_header[7:]
+    computed_sig = hmac.new(
+        WHATSAPP_APP_SECRET.encode("utf-8"),
+        payload,
+        hashlib.sha256
+    ).hexdigest()
+    return hmac.compare_digest(computed_sig, expected_sig)
 
 
 # ─── WhatsApp Phone Numbers API ───────────────────────────────
@@ -55,6 +81,13 @@ def verify_webhook(
 @router.post("/whatsapp")
 async def handle_webhook(request: Request, db: Session = Depends(get_db)):
     """Process incoming WhatsApp messages and status updates."""
+    # Verify Meta signature
+    raw_body = await request.body()
+    signature = request.headers.get("x-hub-signature-256", "")
+    if not verify_webhook_signature(raw_body, signature):
+        print("❌ Webhook signature verification failed!")
+        raise HTTPException(status_code=403, detail="Invalid signature")
+
     try:
         payload = await request.json()
     except Exception:
@@ -362,14 +395,26 @@ async def _handle_status_update(event: dict, db: Session):
         msg.read_status = new_status
         db.commit()
 
-        # Notify via WebSocket
-        await manager.broadcast({
-            "type": "message_status",
-            "conversation_id": msg.conversation_id,
-            "message_id": msg.id,
-            "wa_message_id": wa_message_id,
-            "status": status
-        })
+        # Notify only relevant users via WebSocket
+        conv = db.query(Conversation).filter(Conversation.id == msg.conversation_id).first()
+        notify_users = set()
+        if conv:
+            if conv.owner_id:
+                notify_users.add(conv.owner_id)
+            if conv.shared_with:
+                notify_users.update(conv.shared_with)
+        # Always notify admins
+        admins = db.query(User).filter(User.role == UserRole.admin).all()
+        for a in admins:
+            notify_users.add(a.id)
+        if notify_users:
+            await manager.send_to_users(list(notify_users), {
+                "type": "message_status",
+                "conversation_id": msg.conversation_id,
+                "message_id": msg.id,
+                "wa_message_id": wa_message_id,
+                "status": status
+            })
 
 
 # ─── Media Proxy (download customer-sent files) ───────────────

@@ -90,10 +90,11 @@ def list_conversations(
         query = query.filter(Conversation.priority == priority)
 
     if search:
+        safe_search = sanitize_search(search)
         query = query.join(Contact).filter(
             or_(
-                Contact.name.ilike(f"%{search}%"),
-                Contact.phone.ilike(f"%{search}%")
+                Contact.name.ilike(f"%{safe_search}%"),
+                Contact.phone.ilike(f"%{safe_search}%")
             )
         )
 
@@ -293,6 +294,11 @@ def update_conversation(
     ).filter(Conversation.id == conversation_id).first()
     if not conv:
         raise HTTPException(status_code=404, detail="Conversation not found")
+
+    # Check access — same rule as get_conversation
+    if current_user.role.value != "admin":
+        if conv.owner_id != current_user.id and current_user.id not in (conv.shared_with or []):
+            raise HTTPException(status_code=403, detail="Access denied")
 
     if update.status:
         conv.status = update.status

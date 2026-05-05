@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { getConversations, getConversationCounts, getContacts, createConversation, getLabels, getAgents } from '../api';
 import { useAuth } from '../context/AuthContext';
 
@@ -87,7 +87,17 @@ export default function ConversationList({ selectedId, onSelect, refreshTrigger,
   };
 
   useEffect(() => { fetchLabels(); fetchAgents(); }, []);
-  useEffect(() => { fetchConversations(); fetchCounts(); }, [search, activeTab, statusFilter, categoryFilter, labelFilter, agentFilter, refreshTrigger]);
+
+  // Debounce list refresh — prevents multiple rapid API calls when messages arrive quickly
+  const debounceRef = useRef(null);
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      fetchConversations();
+      fetchCounts();
+    }, 300); // 300ms debounce
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [search, activeTab, statusFilter, categoryFilter, labelFilter, agentFilter, refreshTrigger]);
 
   // Optimistic: clear unread badge immediately when conversation is selected
   useEffect(() => {

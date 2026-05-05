@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func, or_, and_
+from sqlalchemy import func, or_, and_, text as sql_text
 from typing import Optional, List
 from datetime import datetime
-from database import get_db
+from database import get_db, DATABASE_URL
 from models import User, Conversation, Message, Contact, ConversationStatus, CategoryType, PriorityLevel, UserRole
 from whatsapp import get_default_phone_id, format_phone_display, normalize_phone
 from schemas import ConversationResponse, ConversationCreate, ConversationUpdate, TransferRequest, ShareRequest
@@ -13,20 +13,28 @@ from websocket_manager import manager
 router = APIRouter(prefix="/api/conversations", tags=["conversations"])
 
 
-def build_conversation_response(conv, db):
-    last_msg = db.query(Message).filter(
-        Message.conversation_id == conv.id,
-        Message.deleted_at.is_(None),
-        Message.is_internal_note == False
-    ).order_by(Message.created_at.desc()).first()
+def build_conversation_response(conv, db, prefetched=None):
+    """Build response for a single conversation.
+    If prefetched dict is provided, use it instead of querying (batch optimization).
+    """
+    if prefetched:
+        last_msg_content = prefetched.get("last_messages", {}).get(conv.id)
+        unread = prefetched.get("unread_counts", {}).get(conv.id, 0)
+    else:
+        last_msg = db.query(Message).filter(
+            Message.conversation_id == conv.id,
+            Message.deleted_at.is_(None),
+            Message.is_internal_note == False
+        ).order_by(Message.created_at.desc()).first()
+        last_msg_content = last_msg.content if last_msg else None
 
-    unread = db.query(func.count(Message.id)).filter(
-        Message.conversation_id == conv.id,
-        Message.is_read == False,
-        Message.direction == "inbound",
-        Message.deleted_at.is_(None),
-        Message.is_internal_note == False
-    ).scalar()
+        unread = db.query(func.count(Message.id)).filter(
+            Message.conversation_id == conv.id,
+            Message.is_read == False,
+            Message.direction == "inbound",
+            Message.deleted_at.is_(None),
+            Message.is_internal_note == False
+        ).scalar()
 
     owner_name = None
     if conv.owner:
@@ -48,7 +56,7 @@ def build_conversation_response(conv, db):
         created_at=conv.created_at,
         updated_at=conv.updated_at,
         last_message_at=conv.last_message_at,
-        last_message=last_msg.content if last_msg else None,
+        last_message=last_msg_content,
         unread_count=unread
     )
 
@@ -109,7 +117,54 @@ def list_conversations(
     if label_id is not None:
         convs = [c for c in convs if label_id in (c.labels or [])]
 
-    return [build_conversation_response(c, db) for c in convs]
+    if not convs:
+        return []
+
+    # Batch fetch: unread counts and last messages in 2 queries instead of N*2
+    conv_ids = [c.id for c in convs]
+
+    # Batch unread counts
+    unread_rows = db.query(
+        Message.conversation_id,
+        func.count(Message.id)
+    ).filter(
+        Message.conversation_id.in_(conv_ids),
+        Message.is_read == False,
+        Message.direction == "inbound",
+        Message.deleted_at.is_(None),
+        Message.is_internal_note == False
+    ).group_by(Message.conversation_id).all()
+    unread_counts = {row[0]: row[1] for row in unread_rows}
+
+    # Batch last messages — get the latest non-deleted, non-internal message per conversation
+    last_messages = {}
+    if "postgresql" in DATABASE_URL:
+        # PostgreSQL: efficient DISTINCT ON
+        rows = db.execute(sql_text("""
+            SELECT DISTINCT ON (conversation_id) conversation_id, content
+            FROM messages
+            WHERE conversation_id = ANY(:ids)
+              AND deleted_at IS NULL
+              AND is_internal_note = false
+            ORDER BY conversation_id, created_at DESC
+        """), {"ids": conv_ids}).fetchall()
+        last_messages = {row[0]: row[1] for row in rows}
+    else:
+        # SQLite fallback: use subquery
+        for conv in convs:
+            msg = db.query(Message.content).filter(
+                Message.conversation_id == conv.id,
+                Message.deleted_at.is_(None),
+                Message.is_internal_note == False
+            ).order_by(Message.created_at.desc()).first()
+            last_messages[conv.id] = msg[0] if msg else None
+
+    prefetched = {
+        "unread_counts": unread_counts,
+        "last_messages": last_messages
+    }
+
+    return [build_conversation_response(c, db, prefetched=prefetched) for c in convs]
 
 
 @router.get("/counts")

@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from database import get_db
-from models import User
+from models import User, Conversation
 from schemas import UserCreate, UserResponse, UserUpdate, ResetPasswordRequest
 from auth import (
     get_current_user, require_admin, get_password_hash,
@@ -90,6 +90,7 @@ def update_agent(
 @router.delete("/{agent_id}")
 def delete_agent(
     agent_id: int,
+    transfer_to: Optional[int] = Query(None, description="Transfer conversations to this agent ID"),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin)
 ):
@@ -101,12 +102,42 @@ def delete_agent(
     if user.role.value == "admin":
         raise HTTPException(status_code=400, detail="לא ניתן למחוק מנהל מערכת")
 
+    # Transfer all conversations owned by this agent
+    owned_convs = db.query(Conversation).filter(Conversation.owner_id == agent_id).all()
+    transfer_count = len(owned_convs)
+
+    if transfer_to and transfer_count > 0:
+        # Verify target agent exists
+        target = db.query(User).filter(User.id == transfer_to).first()
+        if not target:
+            raise HTTPException(status_code=400, detail="נציג היעד לא נמצא")
+        for conv in owned_convs:
+            conv.owner_id = transfer_to
+            # Also remove deleted agent from shared_with if present
+            if conv.shared_with and agent_id in conv.shared_with:
+                conv.shared_with = [uid for uid in conv.shared_with if uid != agent_id]
+    elif transfer_count > 0:
+        # No transfer target — unassign conversations
+        for conv in owned_convs:
+            conv.owner_id = None
+            if conv.shared_with and agent_id in conv.shared_with:
+                conv.shared_with = [uid for uid in conv.shared_with if uid != agent_id]
+
+    # Also remove from shared_with in conversations where this agent is shared (not owner)
+    shared_convs = db.query(Conversation).filter(
+        Conversation.shared_with.isnot(None)
+    ).all()
+    for conv in shared_convs:
+        if conv.shared_with and agent_id in conv.shared_with:
+            conv.shared_with = [uid for uid in conv.shared_with if uid != agent_id]
+
     username = user.username
     db.delete(user)
     db.commit()
 
-    log_action(current_user.id, "AGENT_DELETED", f"deleted_agent={username}")
-    return {"message": "Agent deleted successfully"}
+    log_action(current_user.id, "AGENT_DELETED",
+               f"deleted_agent={username}, transferred {transfer_count} conversations to agent_id={transfer_to}")
+    return {"message": "Agent deleted successfully", "transferred": transfer_count}
 
 
 @router.post("/{agent_id}/reset-password")

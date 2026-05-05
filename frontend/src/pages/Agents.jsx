@@ -17,6 +17,8 @@ export default function Agents() {
   const [newPassword, setNewPassword] = useState('');
   const [editAgent, setEditAgent] = useState(null);
   const [editForm, setEditForm] = useState({ name: '', status: '' });
+  const [deleteTarget, setDeleteTarget] = useState(null); // agent to delete
+  const [transferTo, setTransferTo] = useState('');
   const [loading, setLoading] = useState(true);
 
   const isAdmin = user?.role === 'admin';
@@ -65,10 +67,17 @@ export default function Agents() {
     }
   };
 
-  const handleDeleteAgent = async (agent) => {
-    if (!confirm(`למחוק את הנציג ${agent.name}? פעולה זו לא ניתנת לביטול.`)) return;
+  const handleDeleteAgent = (agent) => {
+    setDeleteTarget(agent);
+    setTransferTo('');
+  };
+
+  const confirmDeleteAgent = async () => {
+    if (!deleteTarget) return;
     try {
-      await deleteAgent(agent.id);
+      await deleteAgent(deleteTarget.id, transferTo || undefined);
+      setDeleteTarget(null);
+      setTransferTo('');
       fetchAgents();
     } catch (e) {
       alert(e.message || 'שגיאה במחיקה');
@@ -162,25 +171,28 @@ export default function Agents() {
                       </button>
                     </td>
                     <td className="text-center py-4 px-5">
-                      <div className="flex items-center justify-center gap-3">
+                      <div className="flex items-center justify-center gap-2">
                         <button
                           onClick={() => openEditAgent(agent)}
-                          className="text-wa-textSecondary hover:text-wa-light text-sm"
+                          className="text-wa-textSecondary hover:text-wa-light text-lg p-1"
+                          title="עריכה"
                         >
-                          ✏️ עריכה
+                          ✏️
                         </button>
                         <button
                           onClick={() => { setResetId(agent.id); setNewPassword(''); }}
-                          className="text-wa-textSecondary hover:text-wa-light text-sm"
+                          className="text-wa-textSecondary hover:text-wa-light text-lg p-1"
+                          title="איפוס סיסמה"
                         >
-                          🔑 איפוס סיסמה
+                          🔑
                         </button>
                         {agent.role !== 'admin' && (
                           <button
                             onClick={() => handleDeleteAgent(agent)}
-                            className="text-wa-textSecondary hover:text-red-500 text-sm"
+                            className="text-red-400 hover:text-red-500 text-lg p-1"
+                            title="מחיקת נציג"
                           >
-                            🗑️ מחיקה
+                            🗑️
                           </button>
                         )}
                       </div>
@@ -323,6 +335,44 @@ export default function Agents() {
                   שמור שינויים
                 </button>
                 <button onClick={() => setEditAgent(null)} className="px-6 py-2.5 text-wa-textSecondary">ביטול</button>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* Delete agent modal — choose who to transfer conversations to */}
+        {deleteTarget && (
+          <div className="modal-overlay" onClick={() => setDeleteTarget(null)}>
+            <div className="modal-content" onClick={e => e.stopPropagation()}>
+              <h3 className="text-lg font-semibold mb-2">🗑️ מחיקת נציג — {deleteTarget.name}</h3>
+              <p className="text-wa-textSecondary text-sm mb-5">
+                כל השיחות שמוקצות לנציג זה יועברו לנציג שתבחר. אם לא תבחר — השיחות יישארו ללא הקצאה.
+              </p>
+              <div>
+                <label className="block text-wa-textSecondary text-xs mb-1.5">העבר שיחות לנציג:</label>
+                <select
+                  value={transferTo}
+                  onChange={(e) => setTransferTo(e.target.value)}
+                  className="w-full bg-wa-input text-wa-text rounded-lg px-3 py-2.5 text-sm outline-none cursor-pointer"
+                >
+                  <option value="">ללא הקצאה (שיחות יהיו פנויות)</option>
+                  {agents
+                    .filter(a => a.id !== deleteTarget.id && a.is_active)
+                    .map(a => (
+                      <option key={a.id} value={a.id}>
+                        {a.name} {a.role === 'admin' ? '(מנהל)' : '(נציג)'}
+                      </option>
+                    ))
+                  }
+                </select>
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={confirmDeleteAgent}
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-lg font-medium transition"
+                >
+                  מחק נציג
+                </button>
+                <button onClick={() => setDeleteTarget(null)} className="px-6 py-2.5 text-wa-textSecondary">ביטול</button>
               </div>
             </div>
           </div>

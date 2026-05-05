@@ -181,8 +181,8 @@ export const updateAgent = (id, data) =>
   request(`/agents/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
 export const resetAgentPassword = (id, password) =>
   request(`/agents/${id}/reset-password`, { method: 'POST', body: JSON.stringify({ new_password: password }) });
-export const deleteAgent = (id) =>
-  request(`/agents/${id}`, { method: 'DELETE' });
+export const deleteAgent = (id, transferTo) =>
+  request(`/agents/${id}${transferTo ? `?transfer_to=${transferTo}` : ''}`, { method: 'DELETE' });
 
 // Templates
 export const getTemplates = () => request('/templates/');

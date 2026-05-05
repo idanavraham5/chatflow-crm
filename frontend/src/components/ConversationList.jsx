@@ -89,6 +89,15 @@ export default function ConversationList({ selectedId, onSelect, refreshTrigger,
   useEffect(() => { fetchLabels(); fetchAgents(); }, []);
   useEffect(() => { fetchConversations(); fetchCounts(); }, [search, activeTab, statusFilter, categoryFilter, labelFilter, agentFilter, refreshTrigger]);
 
+  // Optimistic: clear unread badge immediately when conversation is selected
+  useEffect(() => {
+    if (selectedId) {
+      setConversations(prev => prev.map(c =>
+        c.id === selectedId ? { ...c, unread_count: 0 } : c
+      ));
+    }
+  }, [selectedId]);
+
   const openNewChatModal = async () => {
     setShowNewChat(true);
     try {

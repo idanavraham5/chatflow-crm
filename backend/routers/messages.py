@@ -386,7 +386,7 @@ async def upload_file(
 
 
 @router.post("/{message_id}/read")
-def mark_read(
+async def mark_read(
     conversation_id: int,
     message_id: int,
     db: Session = Depends(get_db),
@@ -397,12 +397,21 @@ def mark_read(
         raise HTTPException(status_code=404, detail="Conversation not found")
     check_conversation_access(conv, current_user)
 
-    db.query(Message).filter(
+    updated = db.query(Message).filter(
         Message.conversation_id == conversation_id,
         Message.direction == MessageDirection.inbound,
         Message.is_read == False
     ).update({"is_read": True})
     db.commit()
+
+    # Notify other agents that this conversation was read (clears their unread badge)
+    if updated > 0:
+        await manager.broadcast({
+            "type": "conversation_read",
+            "conversation_id": conversation_id,
+            "read_by": current_user.id
+        })
+
     return {"message": "Marked as read"}
 
 

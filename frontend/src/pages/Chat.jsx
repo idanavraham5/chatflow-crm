@@ -69,6 +69,11 @@ export default function Chat() {
       setRefreshTrigger(prev => prev + 1);
     }
 
+    if (data.type === 'conversation_read') {
+      // Another agent (or this user in another tab) read the conversation — refresh list
+      setRefreshTrigger(prev => prev + 1);
+    }
+
     if (data.type === 'conversation_transferred' || data.type === 'conversation_shared') {
       setRefreshTrigger(prev => prev + 1);
       showNotification(
@@ -107,6 +112,11 @@ export default function Chat() {
 
   const handleConversationUpdate = async (update) => {
     if (!selectedConv) return;
+    // Just refresh the list (e.g. after marking messages as read)
+    if (update?._markedRead) {
+      setRefreshTrigger(prev => prev + 1);
+      return;
+    }
     try {
       const updated = await updateConversation(selectedConv.id, update);
       setSelectedConv(updated);

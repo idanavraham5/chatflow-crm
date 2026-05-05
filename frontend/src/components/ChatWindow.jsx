@@ -63,7 +63,11 @@ export default function ChatWindow({ conversation, onConversationUpdate, onBack,
       // Mark as read
       if (data.length > 0) {
         const lastInbound = data.filter(m => m.direction === 'inbound' && !m.is_read).pop();
-        if (lastInbound) await markRead(conversation.id, lastInbound.id);
+        if (lastInbound) {
+          await markRead(conversation.id, lastInbound.id);
+          // Notify parent to refresh unread counts in sidebar
+          if (onConversationUpdate) onConversationUpdate({ _markedRead: true });
+        }
       }
     } catch (e) {}
   };
